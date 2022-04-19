@@ -1,0 +1,17 @@
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - tqdm
+  - attrs
+  - pillow
+  - numpy
+  - opencv
+  - pytorch::pytorch
+  - pytorch::torchvision
+  - wandb
+  - cudatoolkit=11.5
+  - pip
+  - pip:
+    - gym[atari]<0.20
+    - -e .
