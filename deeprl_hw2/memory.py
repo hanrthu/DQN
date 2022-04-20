@@ -54,7 +54,7 @@ class ReplayMemory(Memory):
     clear()
       Reset the memory. Deletes all references to the samples.
     """
-    def __init__(self, max_size):
+    def __init__(self, max_size: int, img_size: int, history_len: int):
         """Setup memory.
 
         You should specify the maximum size of the memory. Once the
@@ -66,33 +66,31 @@ class ReplayMemory(Memory):
         index where the next sample should be inserted in the list.
         """
         super().__init__(max_size)
-        self.max_size = max_size
-        self.memory = []
-        self.indices = 0
+        self.cap = max_size
         self.replace_idx = 0
-        # self.device = device
+        self.size = 0
+        self.state = np.empty((max_size, img_size, img_size, history_len), dtype=np.uint8)
+        self.state_prime = np.empty((max_size, img_size, img_size, history_len), dtype=np.uint8)
+        self.reward = np.empty(max_size)
+        self.action = np.empty(max_size)
+        self.terminate = np.empty(max_size)
 
-    def append(self, state, action, reward, state_prime, terminate):
+    def append(self, state: np.ndarray, action: int, reward: int, state_prime: np.ndarray, terminate: int):
         # sample = ReplaySample(state, action, reward, state_prime, terminate)
-        sample = [state.astype(np.uint8), action, reward, state_prime.astype(np.uint8), terminate]
-        if self.indices < self.max_size:
-            self.memory.append(sample)
-            self.indices += 1
-        else:
-            self.memory[self.replace_idx] = sample
-            self.replace_idx = (self.replace_idx + 1) % self.max_size
+        # sample = [state.astype(np.uint8), action, reward, state_prime.astype(np.uint8), terminate]
+        idx = self.replace_idx
+        self.state[idx] = state
+        self.action[idx] = action
+        self.reward[idx] = reward
+        self.state_prime[idx] = state_prime
+        self.replace_idx = (self.replace_idx + 1) % self.cap
+        if self.size < self.cap:
+            self.size += 1
 
     def sample(self, batch_size, indexes=None):
-        idx = np.random.choice(self.indices, batch_size)
-        # states = [self.memory[i][0] for i in idx]
-        # actions = [self.memory[i][1] for i in idx]
-        # rewards = [self.memory[i][2] for i in idx]
-        # next_states = [self.memory[i][3] for i in idx]
-        # terminates = [self.memory[i][4] for i in idx]
-        samples = [self.memory[i] for i in idx]
-        return samples
+        idx = np.random.choice(range(self.size), batch_size)
+        return self.state[idx], self.action[idx], self.reward[idx], self.state_prime[idx], self.terminate[idx]
 
     def clear(self):
-        self.memory = []
-        self.indices = 0
+        self.size = 0
         self.replace_idx = 0
