@@ -151,7 +151,8 @@ class DQNAgent:
         ------
         Q-values for the state(s)
         """
-        state = state.astype(np.float32)
+        # state = state.astype(np.float32) / 255
+        state = state.astype(np.uint8)
         to_tensor = transforms.ToTensor()
         state = to_tensor(state).to(self.device)
         if len(state.shape) == 3:
