@@ -53,7 +53,7 @@ class ReplayMemory(Memory):
     clear()
       Reset the memory. Deletes all references to the samples.
     """
-    def __init__(self, max_size, device):
+    def __init__(self, max_size):
         """Setup memory.
 
         You should specify the maximum size of the memory. Once the
@@ -64,7 +64,7 @@ class ReplayMemory(Memory):
         We recommend using a list as a ring buffer. Just track the
         index where the next sample should be inserted in the list.
         """
-        super().__init__(max_size, device)
+        super().__init__(max_size)
         self.max_size = max_size
         self.memory = []
         self.indices = 0

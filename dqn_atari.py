@@ -191,7 +191,7 @@ def main():  # noqa: D103
     atari_pro = AtariPreprocessor(args.resize)
     history_pro = HistoryPreprocessor(HISTORY_LENGTH)
     preprocessor = PreprocessorSequence([atari_pro, history_pro])
-    memory = ReplayMemory(MAX_MEMORY_SIZE, device)
+    memory = ReplayMemory(MAX_MEMORY_SIZE)
     agent = DQNAgent(
         q_net,
         qminus_net,
