@@ -3,6 +3,7 @@ import torchvision.transforms as transforms
 from deeprl_hw2.core import Memory
 from deeprl_hw2.core import Sample
 import numpy as np
+from torch.utils.data import DataLoader
 
 
 class ReplaySample(Sample):
@@ -53,7 +54,7 @@ class ReplayMemory(Memory):
     clear()
       Reset the memory. Deletes all references to the samples.
     """
-    def __init__(self, max_size, device):
+    def __init__(self, max_size):
         """Setup memory.
 
         You should specify the maximum size of the memory. Once the
@@ -64,7 +65,7 @@ class ReplayMemory(Memory):
         We recommend using a list as a ring buffer. Just track the
         index where the next sample should be inserted in the list.
         """
-        super().__init__(max_size, device)
+        super().__init__(max_size)
         self.max_size = max_size
         self.memory = []
         self.indices = 0
@@ -73,8 +74,7 @@ class ReplayMemory(Memory):
 
     def append(self, state, action, reward, state_prime, terminate):
         # sample = ReplaySample(state, action, reward, state_prime, terminate)
-        to_tensor = transforms.ToTensor()
-        sample = [to_tensor(state), action, reward, to_tensor(state_prime), terminate]
+        sample = [state.astype(np.uint8), action, reward, state_prime.astype(np.uint8), terminate]
         if self.indices < self.max_size:
             self.memory.append(sample)
             self.indices += 1
@@ -84,15 +84,13 @@ class ReplayMemory(Memory):
 
     def sample(self, batch_size, indexes=None):
         idx = np.random.choice(self.indices, batch_size)
-        # print(self.indices, idx)
-        # print(len(self.memory))
-        states = [self.memory[i][0] for i in idx]
-        actions = [self.memory[i][1] for i in idx]
-        rewards = [self.memory[i][2] for i in idx]
-        next_states = [self.memory[i][3] for i in idx]
-        terminates = [self.memory[i][4] for i in idx]
-        # print("Memory:", np.concatenate(states).shape)
-        return states, actions, rewards, next_states, terminates
+        # states = [self.memory[i][0] for i in idx]
+        # actions = [self.memory[i][1] for i in idx]
+        # rewards = [self.memory[i][2] for i in idx]
+        # next_states = [self.memory[i][3] for i in idx]
+        # terminates = [self.memory[i][4] for i in idx]
+        samples = [self.memory[i] for i in idx]
+        return samples
 
     def clear(self):
         self.memory = []

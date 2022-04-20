@@ -1,37 +1,11 @@
+import collections
+import numpy as np
+import os
 """Core classes."""
 
 
-class Sample:
-    """Represents a reinforcement learning sample.
 
-    Used to store observed experience from an MDP. Represents a
-    standard `(s, a, r, s', terminal)` tuple.
-
-    Note: This is not the most efficient way to store things in the
-    replay memory, but it is a convenient class to work with when
-    sampling batches, or saving and loading samples while debugging.
-
-    Parameters
-    ----------
-    state: array-like
-      Represents the state of the MDP before taking an action. In most
-      cases this will be a numpy array.
-    action: int, float, tuple
-      For discrete action domains this will be an integer. For
-      continuous action domains this will be a floating point
-      number. For a parameterized action MDP this will be a tuple
-      containing the action and its associated parameters.
-    reward: float
-      The reward received for executing the given action in the given
-      state and transitioning to the resulting state.
-    next_state: array-like
-      This is the state the agent transitions to after executing the
-      `action` in `state`. Expected to be the same type/dimensions as
-      the state.
-    is_terminal: boolean
-      True if this action finished the episode. False otherwise.
-    """
-    pass
+Sample = collections.namedtuple('Sample', ['s', 'a', 'r', 'ns', 'ter'])
 
 
 class Preprocessor:
@@ -145,7 +119,7 @@ class Preprocessor:
         """
         return reward
 
-    def reset(self, image):
+    def reset(self):
         """Reset any internal state.
 
         Will be called at the start of every new episode. Makes it
@@ -167,7 +141,7 @@ class Memory:
     If you are storing raw Sample objects in your memory, then you may
     not need the end_episode method, and you may want to tweak the
     append method. This will make the sample method easy to implement
-    (just randomly draw samples saved in your memory).
+    (just ranomly draw saamples saved in your memory).
 
     However, the above approach will waste a lot of memory (as states
     will be stored multiple times in s as next state and then s' as
@@ -183,8 +157,8 @@ class Memory:
       used.
     end_episode(final_state, is_terminal, debug_info=None)
       Set the final state of an episode and mark whether it was a true
-      terminal state (i.e. the env returned is_terminal=True), or it
-      is an artificial terminal state (i.e. agent quit the episode
+      terminal state (i.e. the env returned is_terminal=True), of it
+      is is an artificial terminal state (i.e. agent quit the episode
       early, but agent could have kept running episode).
     sample(batch_size, indexes=None)
       Return list of samples from the memory. Each class will
@@ -193,10 +167,10 @@ class Memory:
     clear()
       Reset the memory. Deletes all references to the samples.
     """
-    def __init__(self, max_size):
+    def __init__(self):
         """Setup memory.
 
-        You should specify the maximum size of the memory. Once the
+        You should specify the maximum size o the memory. Once the
         memory fills up oldest values should be removed. You can try
         the collections.deque class as the underlying storage, but
         your sample method will be very slow.
@@ -206,11 +180,11 @@ class Memory:
         """
         pass
 
-    def append(self, state, action, reward, state_prime, terminate):
+    def append(self, sample):
         raise NotImplementedError('This method should be overridden')
 
-    # def end_episode(self, final_state, is_terminal):
-    #     raise NotImplementedError('This method should be overridden')
+    def end_episode(self, final_state, is_terminal):
+        raise NotImplementedError('This method should be overridden')
 
     def sample(self, batch_size, indexes=None):
         raise NotImplementedError('This method should be overridden')
@@ -219,26 +193,60 @@ class Memory:
         raise NotImplementedError('This method should be overridden')
 
 
-class Policy:
-    """Base class representing an MDP policy.
+class NoMemory(Memory):
+    def __init__(self):
+        super(NoMemory, self).__init__()
+        self.buffer = []
 
-    Policies are used by the agent to choose actions.
+    def append(self, sample):
+        self.buffer.append(sample)
 
-    Policies are designed to be stacked to get interesting behaviors
-    of choices. For instances in a discrete action space the lowest
-    level policy may take in Q-Values and select the action index
-    corresponding to the largest value. If this policy is wrapped in
-    an epsilon greedy policy then with some probability epsilon, a
-    random action will be chosen.
-    """
+    def end_episode(self, final_state, is_terminal):
+        pass
 
-    def select_action(self, **kwargs):
-        """Used by agents to select actions.
+    def sample(self, batch_size, indexes=None):
+        assert len(self.buffer) == batch_size
+        buffer = self.buffer
+        self.buffer = []
+        return buffer
 
-        Returns
-        -------
-        Any:
-          An object representing the chosen action. Type depends on
-          the hierarchy of policy instances.
-        """
-        raise NotImplementedError('This method should be overridden.')
+    def clear(self):
+        assert len(self.buffer) == 0
+
+
+class ReplayMemory(Memory):
+    def __init__(self, max_length):
+        super(ReplayMemory, self).__init__()
+        self.buffer = []
+        self.buffer_len = 0
+        self.max_length = max_length
+        self.insert_id = 0
+
+    def append(self, sample):
+        if self.buffer_len != self.max_length:
+            self.buffer.append(sample)
+            self.buffer_len += 1
+        else:
+            self.buffer[self.insert_id] = sample
+            self.insert_id = (self.insert_id + 1) % self.max_length
+
+    def end_episode(self, final_state, is_terminal):
+        pass
+
+    @staticmethod
+    def encode(sample):
+        return Sample(s=sample.s.astype(np.int8), ns=sample.ns.astype(np.int8), r=sample.r, ter=sample.ter, a=sample.a)
+
+    @staticmethod
+    def decode(sample):
+        return Sample(s=sample.s.astype(np.float32), ns=sample.ns.astype(np.float32), r=sample.r, ter=sample.ter, a=sample.a)
+
+    def sample(self, batch_size, indexes=None):
+        idxs = np.random.randint(0, self.buffer_len, size=batch_size)
+        ret = [self.buffer[idx] for idx in idxs]
+        return ret
+
+    def clear(self):
+        self.buffer = []
+        self.buffer_len = 0
+        self.insert_id = 0

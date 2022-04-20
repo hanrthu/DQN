@@ -45,6 +45,7 @@ class DeepQNet(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.backbone(x)
         # print(x.shape)
+        x = x.contiguous()
         q_value = self.linear(x.view(x.shape[0], -1))
         return q_value
 
@@ -55,6 +56,7 @@ class LinearQNet(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # print("X_shape:", x.shape)
+        x = x.contiguous()
         x = x.view(x.shape[0], -1)
         # print("X_reshaped:", x.shape)
         return self.linear(x)
@@ -154,7 +156,9 @@ class DQNAgent:
         state = to_tensor(state).to(self.device)
         if len(state.shape) == 3:
             state = torch.unsqueeze(state, dim=0)
-        return self.q_network(state).detach().cpu().numpy()
+        with torch.no_grad():
+            action = self.q_network(state).detach().cpu().numpy()
+        return action
 
     def select_policy(self, policy_name, num_actions):
         if policy_name == 'Uniform':
@@ -247,7 +251,7 @@ class DQNAgent:
             rewards.append(float(reward))
             reward = self.preprocessor.process_reward(reward)
             obs_m = self.preprocessor.process_state_for_memory(obs)
-            obs_n = self.preprocessor.process_state_for_network(obs)
+            # obs_n = self.preprocessor.process_state_for_network(obs)
             self.memory.append(state, action, reward, obs_m, terminate)
             if not terminate:
                 state = obs_m
@@ -296,26 +300,25 @@ class DQNAgent:
         return "Successfully Fit the model!"
 
     def process_batch(self, samples):
-        # curr_state_list = []
-        # next_state_list = []
-        # action_list = []
-        # reward_list = []
-        # terminate_list = []
-        # to_tensor = transforms.ToTensor()
-        curr_state_list, action_list, reward_list, next_state_list, terminate_list = samples
-        # for sample in samples:
-        #     curr_state, action, reward, next_state, terminate = sample
-        #     curr_state_list.append(to_tensor(curr_state))
-        #     next_state_list.append(to_tensor(next_state))
-        #     action_list.append(action)
-        #     reward_list.append(reward)
-        #     terminate_list.append(terminate)
+        curr_state_list = []
+        next_state_list = []
+        action_list = []
+        reward_list = []
+        terminate_list = []
+        for sample in samples:
+            curr_state, action, reward, next_state, terminate = sample
+            curr_state_list.append(curr_state)
+            next_state_list.append(next_state)
+            action_list.append(action)
+            reward_list.append(reward)
+            terminate_list.append(terminate)
         r_list = torch.Tensor(reward_list).to(self.device)
         t_list = torch.BoolTensor(terminate_list).to(self.device)
         # print("State Shape:", len(curr_state_list), curr_state_list[0].shape)
-        s_in = torch.stack(curr_state_list, dim=0).to(self.device)
-        ns_in = torch.stack(next_state_list, dim=0).to(self.device)
-
+        s_in = torch.from_numpy(np.stack(curr_state_list))
+        ns_in = torch.from_numpy(np.stack(next_state_list))
+        s_in = (torch.permute(s_in, (0, 3, 1, 2)) / 255).to(self.device)
+        ns_in = (torch.permute(ns_in, (0, 3, 1, 2)) / 255).to(self.device)
         with torch.no_grad():
             qn = self.qminus_network(ns_in)
         q_discounted = r_list + self.gamma * torch.max(qn, dim=-1)[0]
