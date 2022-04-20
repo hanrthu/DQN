@@ -1,12 +1,12 @@
 """Suggested Preprocessors."""
-
-import numpy as np
-from PIL import Image
-import cv2
-from deeprl_hw2 import utils
-from deeprl_hw2.core import Preprocessor
 from collections import deque
+from typing import Any
 
+import cv2
+import numpy as np
+import torch
+
+from deeprl_hw2.core import Preprocessor
 
 class HistoryPreprocessor(Preprocessor):
     """Keeps the last k states.
@@ -24,38 +24,31 @@ class HistoryPreprocessor(Preprocessor):
 
     """
 
-    def __init__(self, history_length=1):
+    def __init__(self, history_length: int):
         self.history_length = history_length
-        self.state_mem = deque([], maxlen=history_length)
-        self.state_net = deque([], maxlen=history_length)
+        self.state_history = deque([], maxlen=history_length)
+        # self.state_net = deque([], maxlen=history_length)
 
-    def process_state_for_network(self, image):
-        """You only want history when you're deciding the current action to take."""
-        self.state_net.append(image.astype(np.uint8))
-        assert len(self.state_net) == self.history_length
-        state_array = np.concatenate(self.state_net, axis=-1)
-        return state_array.astype(np.float32)
+    # def process_state_for_network(self, image: torch.FloatTensor) -> torch.FloatTensor:
+    #     """You only want history when you're deciding the current action to take."""
+    #     self.state_net.append(image)
+    #     assert len(self.state_net) == self.history_length
+    #     return torch.cat(tuple(self.state_net))  # type: ignore
 
-    def process_state_for_memory(self, image):
+    def process_state_for_memory(self, image: torch.ByteTensor) -> torch.ByteTensor:
         """This preprocess is similar to process state for network"""
-        self.state_mem.append(image.astype(np.uint8))
-        assert len(self.state_mem) == self.history_length
-        state_array = np.concatenate(self.state_mem, axis=-1)
-        return state_array.astype(np.uint8)
+        self.state_history.append(image)
+        assert len(self.state_history) == self.history_length
+        return torch.stack(tuple(self.state_history))  # type: ignore
 
-    def reset(self, init_image):
+    def reset(self, image: torch.ByteTensor):
         """Reset the history sequence.
 
         Useful when you start a new episode.
         """
-        for i in range(self.history_length):
-            self.state_net.append(init_image.astype(np.float32))
-            self.state_mem.append(init_image.astype(np.uint8))
-        state_array = np.concatenate(self.state_mem, axis=-1)
-        return state_array.astype(np.uint8)
-
-    def process_reward(self, reward):
-        return np.sign(reward)
+        for i in range(self.history_length - 1):
+            self.state_history.append(image)
+        return self.process_state_for_memory(image)
 
     def get_config(self):
         return {'history_length': self.history_length}
@@ -100,7 +93,7 @@ class AtariPreprocessor(Preprocessor):
     def __init__(self, new_size):
         self.new_size = new_size
 
-    def process_state_for_memory(self, image):
+    def process_state_for_memory(self, image: np.ndarray[Any, np.uint8]) -> torch.ByteTensor:
         """Scale, convert to greyscale and store as uint8.
 
         We don't want to save floating point numbers in the replay
@@ -111,19 +104,17 @@ class AtariPreprocessor(Preprocessor):
         image conversions.
         """
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        # print("Orig and Dest size:", image.shape, self.new_size)
         image = cv2.resize(image, (self.new_size, self.new_size), interpolation=cv2.INTER_LINEAR)
-        image = np.expand_dims(image, -1)
-        return image.astype(np.uint8)
+        return torch.tensor(image)  # type: ignore
 
-    def process_state_for_network(self, image):
-        """Scale, convert to greyscale and store as float32.
-
-        Basically same as process state for memory, but this time
-        outputs float32 images.
-        """
-        image = self.process_state_for_memory(image)
-        return image.astype(np.float32)
+    # def process_state_for_network(self, image: np.ndarray[Any, np.uint8]) -> torch.FloatTensor:
+    #     """Scale, convert to greyscale and store as float32.
+    #
+    #     Basically same as process state for memory, but this time
+    #     outputs float32 images.
+    #     """
+    #     image = self.process_state_for_memory(image)
+    #     return (image / 255)[None]
 
     # def process_batch(self, samples):
     #     """The batches from replay memory will be uint8, convert to float32.
@@ -139,9 +130,8 @@ class AtariPreprocessor(Preprocessor):
         """Clip reward between -1 and 1."""
         return np.sign(reward)
 
-    def reset(self, image):
+    def reset(self, image: np.ndarray[Any, np.uint8]):
         return self.process_state_for_memory(image)
-
 
 class PreprocessorSequence(Preprocessor):
     """You may find it useful to stack multiple prepcrocesosrs (such as the History and the AtariPreprocessor).
@@ -156,20 +146,19 @@ class PreprocessorSequence(Preprocessor):
     state = atari.process_state_for_network(state)
     return history.process_state_for_network(state)
     """
-    def __init__(self, preprocessors):
+    def __init__(self, preprocessors: list[Preprocessor]):
         self.preprocessors = preprocessors
 
-    def process_state_for_memory(self, image):
+    def process_state_for_memory(self, image) -> torch.ByteTensor:
         for pro in self.preprocessors:
             image = pro.process_state_for_memory(image)
-        return image.astype(np.uint8)
+        return image
 
     def process_state_for_network(self, image):
-        for pro in self.preprocessors:
-            image = pro.process_state_for_network(image)
-        return image.astype(np.float32)
+        raise NotImplementedError
+        # return self.process_state_for_memory(image) / 255
 
-    def reset(self, image):
+    def reset(self, image) -> torch.ByteTensor:
         for pro in self.preprocessors:
             image = pro.reset(image)
         return image
@@ -178,4 +167,3 @@ class PreprocessorSequence(Preprocessor):
         for pro in self.preprocessors:
             reward = pro.process_reward(reward)
         return reward
-

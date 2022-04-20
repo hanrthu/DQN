@@ -7,6 +7,8 @@ from collections import deque
 import numpy as np
 import gym
 import cv2
+from torch import nn
+
 cv2.ocl.setUseOpenCL(False)
 
 
@@ -218,3 +220,17 @@ def get_hard_target_model_updates(target, source):
       List of tensor update ops.
     """
     target.load_state_dict(source.state_dict())
+
+class eval_model(torch.no_grad):
+    def __init__(self, model: nn.Module):
+        super().__init__()
+        self.model = model
+
+    def __enter__(self):
+        super().__enter__()
+        self.mode = self.model.training
+        self.model.eval()
+
+    def __exit__(self, *args):
+        super().__exit__(*args)
+        self.model.train(self.mode)

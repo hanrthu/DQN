@@ -139,14 +139,17 @@ def main():  # noqa: D103
     parser.add_argument('--num_episodes', default=100, help='The number of episodes when testing')
     parser.add_argument('--expname', default='LinearQN', help='The name of the experiment')
     parser.add_argument('--weights', default=None, help='The path to model weights')
+    parser.add_argument('--max_memory_size', default=1000000, type=int)
+    parser.add_argument('--num_burn_in', default=50000, type=int)
+    parser.add_argument('--batch_size', default=32, type=int)
     args = parser.parse_args()
     # print(args)
     args.input_shape = tuple(args.input_shape)
     args.output = get_output_folder(args.output, args.env)
 
     # hyper-parameters
-    BATCH_SIZE = 32
-    MAX_MEMORY_SIZE = 1000000
+    # BATCH_SIZE = 32
+    # MAX_MEMORY_SIZE = 1000000
     HISTORY_LENGTH = 4
     TARGET_UPDATE_FREQ = 10000
     GAMMA = 0.99
@@ -157,7 +160,7 @@ def main():  # noqa: D103
     MOMENTUM = 0.95
     START_EPS = 1.0
     END_EPS = 0.1
-    NUM_BURN_IN = 50000
+    # NUM_BURN_IN = 50000
     # NUM_BURN_IN = 100
     FINAL_EXPLORATION_FRAME = 500000
     ITERATIONS = 3000000
@@ -191,7 +194,7 @@ def main():  # noqa: D103
     atari_pro = AtariPreprocessor(args.resize)
     history_pro = HistoryPreprocessor(HISTORY_LENGTH)
     preprocessor = PreprocessorSequence([atari_pro, history_pro])
-    memory = ReplayMemory(MAX_MEMORY_SIZE, args.resize, HISTORY_LENGTH)
+    memory = ReplayMemory(args.max_memory_size, args.resize, HISTORY_LENGTH, device)
     agent = DQNAgent(
         q_net,
         qminus_net,
@@ -201,10 +204,10 @@ def main():  # noqa: D103
         START_EPS,
         END_EPS,
         TARGET_UPDATE_FREQ,
-        NUM_BURN_IN,
+        args.num_burn_in,
         TRAIN_FREQ,
         EVAL_FREQ,
-        BATCH_SIZE,
+        args.batch_size,
         ITERATIONS,
         FINAL_EXPLORATION_FRAME,
         optimizer,
