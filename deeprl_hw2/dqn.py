@@ -12,23 +12,22 @@ import torchvision.transforms as transforms
 from deeprl_hw2.utils import get_hard_target_model_updates
 from tqdm import tqdm
 
-
 class DeepQNet(nn.Module):
     def __init__(self, input_channels, num_actions, large=False):
         super(DeepQNet, self).__init__()
         if large:
             self.backbone = nn.Sequential(
-                nn.Conv2d(kernel_size=8,in_channels=input_channels,out_channels=32,stride=4),
+                nn.Conv2d(kernel_size=8, in_channels=input_channels, out_channels=32, stride=4),
                 nn.ReLU(),
-                nn.Conv2d(kernel_size=4,in_channels=32,out_channels=64,stride=2),
+                nn.Conv2d(kernel_size=4, in_channels=32, out_channels=64, stride=2),
                 nn.ReLU(),
-                nn.Conv2d(kernel_size=3,in_channels=64,out_channels=64,stride=1),
+                nn.Conv2d(kernel_size=3, in_channels=64, out_channels=64, stride=1),
                 nn.ReLU(),
             )
             self.linear = nn.Sequential(
-                nn.Linear(in_features=64*7*7,out_features=512),
+                nn.Linear(in_features=64 * 7 * 7, out_features=512),
                 nn.ReLU(),
-                nn.Linear(in_features=512,out_features=num_actions)
+                nn.Linear(in_features=512, out_features=num_actions)
             )
         else:
             self.backbone = nn.Sequential(
@@ -49,7 +48,6 @@ class DeepQNet(nn.Module):
         q_value = self.linear(x.view(x.shape[0], -1))
         return q_value
 
-
 class LinearQNet(nn.Module):
     def __init__(self, input_channels, num_actions):
         super(LinearQNet, self).__init__()
@@ -60,7 +58,6 @@ class LinearQNet(nn.Module):
         x = x.view(x.shape[0], -1)
         # print("X_reshaped:", x.shape)
         return self.linear(x)
-
 
 class DQNAgent:
     """Class implementing DQN.
@@ -100,6 +97,7 @@ class DQNAgent:
     batch_size: int
       How many samples in each minibatch.
     """
+
     def __init__(self,
                  q_network: nn.Module,
                  qminus_network: nn.Module,
@@ -170,7 +168,8 @@ class DQNAgent:
         else:
             self.logger.info("Start Training Q Network!")
             greedy = GreedyPolicy()
-            self.policy = LinearDecayGreedyEpsilonPolicy(greedy, 'lineardecay', self.start_eps, self.end_eps, self.final_exploration_frame, num_actions)
+            self.policy = LinearDecayGreedyEpsilonPolicy(greedy, 'lineardecay', self.start_eps, self.end_eps,
+                                                         self.final_exploration_frame, num_actions)
             self.logger.info("Linear Decay Greedy Epsilon Policy Selected...")
 
     def select_action(self, state, iteration, is_training, **kwargs):
@@ -287,7 +286,8 @@ class DQNAgent:
                 if iteration % (num_iterations // 3) == 0 or iteration % 200000 == 0:
                     os.makedirs('./exps/{}'.format(self.args.expname), exist_ok=True)
                     torch.save(
-                        self.q_network.state_dict(), './exps/{}/{}-{}.pth'.format(self.args.expname, self.args.env, iteration)
+                        self.q_network.state_dict(),
+                        './exps/{}/{}-{}.pth'.format(self.args.expname, self.args.env, iteration)
                     )
                 if iteration % self.eval_freq == 0:
                     self.logger.info("Evaluating Q Network at iteration {}...".format(iteration))
