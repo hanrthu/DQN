@@ -1,10 +1,9 @@
-import torchvision.transforms as transforms
+from __future__ import annotations
 
-from deeprl_hw2.core import Memory
-from deeprl_hw2.core import Sample
 import numpy as np
-from torch.utils.data import DataLoader
+import torch
 
+from deeprl_hw2.core import Memory, Sample
 
 class ReplaySample(Sample):
     def __init__(self, state, action, reward, state_prime, terminate):
@@ -54,7 +53,7 @@ class ReplayMemory(Memory):
     clear()
       Reset the memory. Deletes all references to the samples.
     """
-    def __init__(self, max_size):
+    def __init__(self, max_size: int, img_size: int, history_len: int, device: torch.device | str):
         """Setup memory.
 
         You should specify the maximum size of the memory. Once the
@@ -66,33 +65,45 @@ class ReplayMemory(Memory):
         index where the next sample should be inserted in the list.
         """
         super().__init__(max_size)
-        self.max_size = max_size
-        self.memory = []
-        self.indices = 0
-        self.replace_idx = 0
-        # self.device = device
+        self.cap = max_size
+        self.replace_idx = self.size = 0
+        self.state = torch.zeros(max_size, history_len, img_size, img_size, dtype=torch.uint8)
+        self.next_state = torch.zeros_like(self.state)
+        self.reward = torch.zeros(max_size, dtype=torch.float)
+        self.action = torch.zeros(max_size, dtype=torch.long)
+        self.terminate = torch.zeros(max_size, dtype=torch.bool)
+        self.device = device
 
-    def append(self, state, action, reward, state_prime, terminate):
-        # sample = ReplaySample(state, action, reward, state_prime, terminate)
-        sample = [state.astype(np.uint8), action, reward, state_prime.astype(np.uint8), terminate]
-        if self.indices < self.max_size:
-            self.memory.append(sample)
-            self.indices += 1
-        else:
-            self.memory[self.replace_idx] = sample
-            self.replace_idx = (self.replace_idx + 1) % self.max_size
+    def append(
+        self,
+        state: torch.ByteTensor,
+        action: int,
+        reward: int,
+        next_state: torch.ByteTensor,
+        terminate: int
+    ):
+        idx = self.replace_idx
+        self.state[idx] = state
+        self.action[idx] = action
+        self.reward[idx] = reward
+        self.next_state[idx] = next_state
+        self.replace_idx = (self.replace_idx + 1) % self.cap
+        if self.size < self.cap:
+            self.size += 1
 
-    def sample(self, batch_size, indexes=None):
-        idx = np.random.choice(self.indices, batch_size)
-        # states = [self.memory[i][0] for i in idx]
-        # actions = [self.memory[i][1] for i in idx]
-        # rewards = [self.memory[i][2] for i in idx]
-        # next_states = [self.memory[i][3] for i in idx]
-        # terminates = [self.memory[i][4] for i in idx]
-        samples = [self.memory[i] for i in idx]
-        return samples
+    def sample(self, batch_size, indexes=None) -> dict[str, torch.Tensor]:
+        idx = np.random.choice(range(self.size), batch_size)
+        # 状态使用 uint8 存储的唯一意义是节省空间，当数据从 memory 取出时，就除以 255
+        ret = {
+            'state': self.state[idx] / 255,
+            'action': self.action[idx],
+            'reward': self.reward[idx],
+            'next_state': self.next_state[idx] / 255,
+            'terminate': self.terminate[idx],
+        }
+        for k, v in ret.items():
+            ret[k] = v.to(self.device)
+        return ret
 
     def clear(self):
-        self.memory = []
-        self.indices = 0
-        self.replace_idx = 0
+        self.size = self.replace_idx = 0

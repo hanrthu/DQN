@@ -5,9 +5,9 @@ implementations and some unimplemented classes that should be useful
 in your code.
 """
 import numpy as np
-import attr
-from deeprl_hw2.core import Policy
+import torch
 
+from deeprl_hw2.core import Policy
 
 class UniformRandomPolicy(Policy):
     """Chooses a discrete action with uniform random probability.
@@ -51,8 +51,8 @@ class GreedyPolicy(Policy):
     This is a pure exploitation policy.
     """
 
-    def select_action(self, q_values, **kwargs):  # noqa: D102
-        return np.argmax(q_values)
+    def select_action(self, q_values: torch.FloatTensor, **kwargs):  # noqa: D102
+        return q_values.argmax()
 
 
 class GreedyEpsilonPolicy(Policy):
@@ -72,7 +72,7 @@ class GreedyEpsilonPolicy(Policy):
         self.eps = epsilon
         self.num_actions = num_actions
 
-    def select_action(self, q_values, **kwargs):
+    def select_action(self, q_values: torch.FloatTensor, **kwargs):
         """Run Greedy-Epsilon for the given Q-values.
 
         Parameters
@@ -88,7 +88,8 @@ class GreedyEpsilonPolicy(Policy):
         """
         p = np.random.rand()
         if p > self.eps:
-            return np.argmax(q_values)
+            # return np.argmax(q_values)
+            return q_values.argmax().item()
         else:
             return np.random.randint(0, self.num_actions)
 

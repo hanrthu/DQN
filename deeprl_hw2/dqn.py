@@ -5,11 +5,13 @@ import gym
 import torch
 import torch.nn as nn
 import numpy as np
+from torchvision.transforms import ToTensor
+from torchvision.transforms.functional import to_tensor
 import wandb
 from deeprl_hw2.core import Preprocessor, Memory, Policy
 from deeprl_hw2.policy import UniformRandomPolicy, GreedyEpsilonPolicy, LinearDecayGreedyEpsilonPolicy, GreedyPolicy
 import torchvision.transforms as transforms
-from deeprl_hw2.utils import get_hard_target_model_updates
+from deeprl_hw2.utils import eval_model, get_hard_target_model_updates
 from tqdm import tqdm
 
 class DeepQNet(nn.Module):
@@ -142,7 +144,7 @@ class DQNAgent:
         self.eval_freq = eval_freq
         self.policy = None
 
-    def calc_q_values(self, state):
+    def calc_q_values(self, state: torch.FloatTensor):
         """Given a state (or batch of states) calculate the Q-values.
 
         Basically run your network on these states.
@@ -151,17 +153,15 @@ class DQNAgent:
         ------
         Q-values for the state(s)
         """
-        # state = state.astype(np.float32) / 255
-        state = state.astype(np.uint8)
-        to_tensor = transforms.ToTensor()
-        state = to_tensor(state).to(self.device)
         if len(state.shape) == 3:
-            state = torch.unsqueeze(state, dim=0)
-        with torch.no_grad():
-            q_value = self.q_network(state).detach().cpu().numpy()
-        return q_value
+            state = state[None]
+        with eval_model(self.q_network):
+            q_values = self.q_network(state)
+        if len(state.shape) == 3:
+            q_values = q_values[0]
+        return q_values
 
-    def select_policy(self, policy_name, num_actions):
+    def select_policy(self, policy_name: str, num_actions: int):
         if policy_name == 'Uniform':
             self.policy = UniformRandomPolicy(num_actions)
             self.logger.info("Uniform Random Policy Selected...")
@@ -175,7 +175,7 @@ class DQNAgent:
                                                          self.final_exploration_frame, num_actions)
             self.logger.info("Linear Decay Greedy Epsilon Policy Selected...")
 
-    def select_action(self, state, iteration, is_training, **kwargs):
+    def select_action(self, state: torch.FloatTensor, iteration: int, is_training: bool):
         """Select the action based on the current state.
 
         You will probably want to vary your behavior here based on
@@ -199,7 +199,6 @@ class DQNAgent:
         if is_training and iteration < self.num_burn_in:
             action = self.policy.select_action()
         else:
-            self.logger.debug("Shape of batched state: {}".format(state.shape))
             q_values = self.calc_q_values(state)
             action = self.policy.select_action(q_values, is_training)
         return action
@@ -232,30 +231,30 @@ class DQNAgent:
         action_num = env.action_space.n
         self.q_network.train()
         self.logger.debug("Reset Environment Shape: {}".format(env.reset().shape))
-        state = self.preprocessor.reset(env.reset())
-        self.logger.debug("State Shape After Preprocess: {}".format(state.shape))
+        state_m: torch.ByteTensor = self.preprocessor.reset(env.reset())
+        self.logger.debug("State Shape After Preprocess: {}".format(state_m.shape))
         self.select_policy('Uniform', action_num)
-        switched = 0
+        switched = False
         losses, rewards = [], []
         epi_losses, epi_rewards = [], []
         # Need to add some loggings
-        for iteration in tqdm(range(num_iterations)):
-            if switched == 0 and iteration >= self.num_burn_in:
-                switched = 1
+        for iteration in tqdm(range(num_iterations), ncols=80):
+            state_n: torch.FloatTensor = (state_m / 255).to(self.device)
+            if not switched and iteration >= self.num_burn_in:
+                switched = True
                 self.select_policy('LinearDecayGreedyEps', action_num)
-            action = self.select_action(state, iteration, True)
+            action = self.select_action(state_n, iteration, is_training=True)
             obs, reward, terminate, _ = env.step(action)
-            # if reward != 0:
-            #     print("Iter:{}, Reward:{}".format(iteration, reward))
+            if reward != 0:
+                print(iteration, reward)
             rewards.append(float(reward))
             reward = self.preprocessor.process_reward(reward)
-            obs_m = self.preprocessor.process_state_for_memory(obs)
-            # obs_n = self.preprocessor.process_state_for_network(obs)
-            self.memory.append(state, action, reward, obs_m, terminate)
+            next_state: torch.ByteTensor = self.preprocessor.process_state_for_memory(obs)
+            self.memory.append(state_m, action, reward, next_state, terminate)
             if not terminate:
-                state = obs_m
+                state_m = next_state
             else:
-                state = self.preprocessor.reset(env.reset())
+                state_m = self.preprocessor.reset(env.reset())
                 if iteration >= self.num_burn_in:
                     epi_losses.append(np.mean(losses))
                     epi_rewards.append(np.sum(rewards))
@@ -264,18 +263,18 @@ class DQNAgent:
                         'Episode Loss': np.mean(losses),
                         'Episode Reward': np.sum(rewards)
                     })
-                losses = []
-                rewards = []
+                losses.clear()
+                rewards.clear()
+
             if iteration >= self.num_burn_in:
-                samples = self.memory.sample(self.batch_size)
-                x_in, q_target, action_list = self.process_batch(samples)
-                # print("X_in:",x_in)
-                q_pred = self.q_network(x_in)
-                self.logger.debug("Action List:{}, Pred Shape:{}".format(action_list, q_pred.shape))
-                out = q_pred[range(self.batch_size), action_list]
+                batch = self.memory.sample(self.batch_size)
+                replay_batch = self.process_batch(batch)
+                q_pred = self.q_network(replay_batch['state'])
+                # self.logger.debug("Action List:{}, Pred Shape:{}".format(replay_batch['action'], q_pred.shape))
+                out = q_pred[range(self.batch_size), replay_batch['action']]
                 # print(q_pred, out, action_list)
-                self.logger.debug("Target Shape:{}, Output Shape:{}".format(q_target.shape, out.shape))
-                loss = self.criterion(out, q_target)
+                # self.logger.debug("Target Shape:{}, Output Shape:{}".format(q_target.shape, out.shape))
+                loss = self.criterion(out, replay_batch['q_target'])
                 loss.backward()
                 losses.append(loss.item())
                 if iteration % self.train_freq == 0:
@@ -298,56 +297,37 @@ class DQNAgent:
                     })
         return "Successfully Fit the model!"
 
-    def process_batch(self, samples):
-        curr_state_list = []
-        next_state_list = []
-        action_list = []
-        reward_list = []
-        terminate_list = []
-        for sample in samples:
-            curr_state, action, reward, next_state, terminate = sample
-            curr_state_list.append(curr_state)
-            next_state_list.append(next_state)
-            action_list.append(action)
-            reward_list.append(reward)
-            terminate_list.append(terminate)
-        r_list = torch.Tensor(reward_list).to(self.device)
-        t_list = torch.BoolTensor(terminate_list).to(self.device)
-        # print("State Shape:", len(curr_state_list), curr_state_list[0].shape)
-        s_in = torch.from_numpy(np.stack(curr_state_list))
-        ns_in = torch.from_numpy(np.stack(next_state_list))
-        s_in = (torch.permute(s_in, (0, 3, 1, 2)) / 255).to(self.device)
-        ns_in = (torch.permute(ns_in, (0, 3, 1, 2)) / 255).to(self.device)
-        with torch.no_grad():
-            qn = self.qminus_network(ns_in)
-        q_discounted = r_list + self.gamma * torch.max(qn, dim=-1)[0]
-        q_target = torch.where(t_list, r_list, q_discounted)
-        # print(s_in.shape,q_target.shape)
-
-        # ns_in = torch.zeros([32, 4, 84, 84]).to(self.device)
-        # with torch.no_grad():
-        #     qn = self.qminus_network(ns_in)
-        # s_in = torch.zeros([32, 4, 84, 84]).to(self.device)
-        # q_target = torch.zeros([32]).to(self.device)
-        # action_list = [0 for i in range(32)]
-        return s_in, q_target, action_list
+    def process_batch(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+        for k, v in batch.items():
+            batch[k] = v.to(self.device)
+        with eval_model(self.qminus_network):
+            qn = self.qminus_network(batch['next_state'])
+        q_target = batch['reward'] + self.gamma * qn.max(dim=-1)[0]
+        q_target[batch['terminate']] = batch['reward'][batch['terminate']]
+        return {
+            'state': batch['state'],
+            'q_target': q_target,
+            'action': batch['action'],
+        }
 
     def evaluate_episode(self, env, max_episode_length=None):
         action_num = env.action_space.n
-        state = self.preprocessor.reset(env.reset())
+        video_frames = [env.reset()]
+        state: torch.ByteTensor = self.preprocessor.reset(video_frames[0])
         # self.select_policy('GreedyEps', action_num)
-        policy = GreedyEpsilonPolicy(0.05, action_num)
+        # policy = GreedyEpsilonPolicy(0.05, action_num)
+        self.select_policy('GreedyEpsilonPolicy', action_num)
         terminate = False
         total_reward = 0
-        video_frames = [env.reset()]
+        iteration = 0
         while not terminate:
-            # action = self.select_action(state, 0, False)
-            q_values = self.calc_q_values(state)
-            action = policy.select_action(q_values)
+            state_n = (state / 255).to(self.device)
+            action = self.select_action(state_n, iteration, is_training=False)
             obs, reward, terminate, _ = env.step(action)
             total_reward += reward
             video_frames.append(obs)
-            state = self.preprocessor.process_state_for_network(obs)
+            state = self.preprocessor.process_state_for_memory(obs)
+            iteration += 1
         return total_reward, video_frames
 
     def evaluate(self, env, num_episodes, max_episode_length=None):
@@ -366,7 +346,7 @@ class DQNAgent:
         self.q_network.eval()
         reward_list = []
         video_list = []
-        for i in tqdm(range(num_episodes)):
+        for i in tqdm(range(num_episodes), ncols=80):
             reward_epi, video_epi = self.evaluate_episode(env)
             reward_list.append(reward_epi)
             video_list.append(video_epi)
