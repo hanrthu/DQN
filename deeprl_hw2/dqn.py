@@ -158,8 +158,8 @@ class DQNAgent:
         if len(state.shape) == 3:
             state = torch.unsqueeze(state, dim=0)
         with torch.no_grad():
-            action = self.q_network(state).detach().cpu().numpy()
-        return action
+            q_value = self.q_network(state).detach().cpu().numpy()
+        return q_value
 
     def select_policy(self, policy_name, num_actions):
         if policy_name == 'Uniform':
@@ -240,15 +240,13 @@ class DQNAgent:
         epi_losses, epi_rewards = [], []
         # Need to add some loggings
         for iteration in tqdm(range(num_iterations)):
-            # os.makedirs('./exps/{}'.format(self.args.expname), exist_ok=True)
-            # torch.save(
-            #     self.q_network.state_dict(), './exps/{}/{}-{}.pth'.format(self.args.expname, self.args.env, iteration)
-            # )
             if switched == 0 and iteration >= self.num_burn_in:
                 switched = 1
                 self.select_policy('LinearDecayGreedyEps', action_num)
             action = self.select_action(state, iteration, True)
             obs, reward, terminate, _ = env.step(action)
+            # if reward != 0:
+            #     print("Iter:{}, Reward:{}".format(iteration, reward))
             rewards.append(float(reward))
             reward = self.preprocessor.process_reward(reward)
             obs_m = self.preprocessor.process_state_for_memory(obs)
