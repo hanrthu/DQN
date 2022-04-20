@@ -179,7 +179,9 @@ def main():  # noqa: D103
     # env = gym.make('SpaceInvaders-v0')
 
     env = make_env(env)
+    # print("0")
     num_actions = env.action_space.n
+    # print(num_actions)
     if args.deep:
         q_net = DeepQNet(HISTORY_LENGTH, num_actions, args.large).to(device)
         qminus_net = DeepQNet(HISTORY_LENGTH, num_actions, args.large).to(device)
