@@ -240,10 +240,6 @@ class DQNAgent:
         # Need to add some loggings
         for iteration in tqdm(range(num_iterations), ncols=80):
             state_n: torch.FloatTensor = (state_m / 255).to(self.device)
-            # os.makedirs('./exps/{}'.format(self.args.expname), exist_ok=True)
-            # torch.save(
-            #     self.q_network.state_dict(), './exps/{}/{}-{}.pth'.format(self.args.expname, self.args.env, iteration)
-            # )
             if not switched and iteration >= self.num_burn_in:
                 switched = True
                 self.select_policy('LinearDecayGreedyEps', action_num)
