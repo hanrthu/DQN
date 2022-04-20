@@ -53,7 +53,7 @@ def init_random_state(seed):
     torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
     random.seed(seed)
-    torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.deterministic = True
 
 
 def create_model(window, input_shape, num_actions,
@@ -190,7 +190,7 @@ def main():  # noqa: D103
     atari_pro = AtariPreprocessor(args.resize)
     history_pro = HistoryPreprocessor(HISTORY_LENGTH)
     preprocessor = PreprocessorSequence([atari_pro, history_pro])
-    memory = ReplayMemory(MAX_MEMORY_SIZE)
+    memory = ReplayMemory(MAX_MEMORY_SIZE, device)
     agent = DQNAgent(
         q_net,
         qminus_net,
