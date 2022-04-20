@@ -44,7 +44,7 @@ def init_wandb(lr, iterations, momentum, expname):
     config.lr = lr
     config.iterations = iterations
     config.momentum = momentum
-    config.seed = 42
+    config.seed = 260817
     config.log_interval = 10000
 
 
@@ -53,7 +53,8 @@ def init_random_state(seed):
     torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
     random.seed(seed)
-    torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = True
+    # torch.backends.cudnn.deterministic = False
 
 
 def create_model(window, input_shape, num_actions,

@@ -193,7 +193,7 @@ class Memory:
     clear()
       Reset the memory. Deletes all references to the samples.
     """
-    def __init__(self, max_size, device):
+    def __init__(self, max_size):
         """Setup memory.
 
         You should specify the maximum size of the memory. Once the

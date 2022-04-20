@@ -156,7 +156,9 @@ class DQNAgent:
         state = to_tensor(state).to(self.device)
         if len(state.shape) == 3:
             state = torch.unsqueeze(state, dim=0)
-        return self.q_network(state).detach().cpu().numpy()
+        with torch.no_grad():
+            action = self.q_network(state).detach().cpu().numpy()
+        return action
 
     def select_policy(self, policy_name, num_actions):
         if policy_name == 'Uniform':
