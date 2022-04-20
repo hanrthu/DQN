@@ -298,20 +298,20 @@ class DQNAgent:
         return "Successfully Fit the model!"
 
     def process_batch(self, samples):
-        # curr_state_list = []
-        # next_state_list = []
-        # action_list = []
-        # reward_list = []
-        # terminate_list = []
-        # to_tensor = transforms.ToTensor()
-        curr_state_list, action_list, reward_list, next_state_list, terminate_list = samples
-        # for sample in samples:
-        #     curr_state, action, reward, next_state, terminate = sample
-        #     curr_state_list.append(to_tensor(curr_state))
-        #     next_state_list.append(to_tensor(next_state))
-        #     action_list.append(action)
-        #     reward_list.append(reward)
-        #     terminate_list.append(terminate)
+        curr_state_list = []
+        next_state_list = []
+        action_list = []
+        reward_list = []
+        terminate_list = []
+        to_tensor = transforms.ToTensor()
+        # curr_state_list, action_list, reward_list, next_state_list, terminate_list = samples
+        for sample in samples:
+            curr_state, action, reward, next_state, terminate = sample
+            curr_state_list.append(to_tensor(curr_state))
+            next_state_list.append(to_tensor(next_state))
+            action_list.append(action)
+            reward_list.append(reward)
+            terminate_list.append(terminate)
         r_list = torch.Tensor(reward_list).to(self.device)
         t_list = torch.BoolTensor(terminate_list).to(self.device)
         # print("State Shape:", len(curr_state_list), curr_state_list[0].shape)
