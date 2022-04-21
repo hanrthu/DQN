@@ -6,6 +6,7 @@ dependencies:
   - attrs
   - pillow
   - numpy
+  - matplotlib
   - opencv
   - pytorch::pytorch
   - pytorch::torchvision

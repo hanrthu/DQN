@@ -92,8 +92,8 @@ class ReplayMemory(Memory):
             self.size += 1
 
     def sample(self, batch_size, indexes=None) -> dict[str, torch.Tensor]:
-        idx = np.random.choice(range(self.size), batch_size)
-        # 状态使用 uint8 存储的唯一意义是节省空间，当数据从 memory 取出时，就除以 255
+        idx = np.random.randint(self.size, size=batch_size)
+        # 状态使用 uint8 存储的唯一意义是节省空间，所以当从 memory 取出时，就除以 255
         ret = {
             'state': self.state[idx] / 255,
             'action': self.action[idx],

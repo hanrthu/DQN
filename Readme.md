@@ -12,8 +12,6 @@ To install requirements:
 ```setup
 conda env create -n hw2
 conda activate hw2
-pip install -r requirements.txt
-conda install tensorflow-gpu # can also be torch, tensorflow or keras, any DL library you like
 ```
 
 
