@@ -11,6 +11,8 @@ def main():
     plt.show(block=False)
     while True:
         action = int(input('action:'))
+        if action not in range(env.action_space.n):
+            continue
         obs, reward, terminate, _ = env.step(action)
         print(reward, terminate)
         im.set_data(obs)
