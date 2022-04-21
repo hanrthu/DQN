@@ -1,18 +1,17 @@
 """Main DQN agent."""
 import os
+from typing import Type
 
 import gym
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from torchvision.transforms import ToTensor
-from torchvision.transforms.functional import to_tensor
-import wandb
-from deeprl_hw2.core import Preprocessor, Memory, Policy
-from deeprl_hw2.policy import UniformRandomPolicy, GreedyEpsilonPolicy, LinearDecayGreedyEpsilonPolicy, GreedyPolicy
-import torchvision.transforms as transforms
-from deeprl_hw2.utils import eval_model, get_hard_target_model_updates
 from tqdm import tqdm
+import wandb
+
+from deeprl_hw2.core import Memory, Policy, Preprocessor
+from deeprl_hw2.policy import GreedyEpsilonPolicy, GreedyPolicy, LinearDecayGreedyEpsilonPolicy, UniformRandomPolicy
+from deeprl_hw2.utils import eval_model, get_hard_target_model_updates
 
 class DeepQNet(nn.Module):
     def __init__(self, input_channels, num_actions, large=False):
@@ -142,9 +141,9 @@ class DQNAgent:
         self.args = args
         self.logger = logger
         self.eval_freq = eval_freq
-        self.policy = None
+        # self.policy = None
 
-    def calc_q_values(self, state: torch.FloatTensor):
+    def calc_q_values(self, state: torch.FloatTensor) -> torch.FloatTensor:
         """Given a state (or batch of states) calculate the Q-values.
 
         Basically run your network on these states.
@@ -161,47 +160,49 @@ class DQNAgent:
             q_values = q_values[0]
         return q_values
 
-    def select_policy(self, policy_name: str, num_actions: int):
-        if policy_name == 'Uniform':
-            self.policy = UniformRandomPolicy(num_actions)
+    def select_policy(self, policy_cls: Type[Policy], num_actions: int) -> Policy:
+        # if policy_name == 'Uniform':
+        # if policy_cls is UniformRandomPolicy:
+        if policy_cls is UniformRandomPolicy:
             self.logger.info("Uniform Random Policy Selected...")
-        elif policy_name == 'GreedyEps':
-            self.policy = GreedyEpsilonPolicy(0.05, num_actions)
+            return UniformRandomPolicy(num_actions)
+        elif policy_cls is GreedyEpsilonPolicy:
             self.logger.info("Greedy Epsilon Policy Selected...")
+            return GreedyEpsilonPolicy(0.05, num_actions)
         else:
-            self.logger.info("Start Training Q Network!")
-            greedy = GreedyPolicy()
-            self.policy = LinearDecayGreedyEpsilonPolicy(greedy, 'lineardecay', self.start_eps, self.end_eps,
-                                                         self.final_exploration_frame, num_actions)
+            assert policy_cls is LinearDecayGreedyEpsilonPolicy
             self.logger.info("Linear Decay Greedy Epsilon Policy Selected...")
+            greedy = GreedyPolicy()
+            return LinearDecayGreedyEpsilonPolicy(greedy, 'lineardecay', self.start_eps, self.end_eps,
+                                                  self.final_exploration_frame, num_actions)
 
-    def select_action(self, state: torch.FloatTensor, iteration: int, is_training: bool):
-        """Select the action based on the current state.
-
-        You will probably want to vary your behavior here based on
-        which stage of training your in. For example, if you're still
-        collecting random samples you might want to use a
-        UniformRandomPolicy.
-
-        If you're testing, you might want to use a GreedyEpsilonPolicy
-        with a low epsilon.
-
-        If you're training, you might want to use the
-        LinearDecayGreedyEpsilonPolicy.
-
-        This would also be a good place to call
-        process_state_for_network in your preprocessor.
-
-        Returns
-        --------
-        selected action
-        """
-        if is_training and iteration < self.num_burn_in:
-            action = self.policy.select_action()
-        else:
-            q_values = self.calc_q_values(state)
-            action = self.policy.select_action(q_values, is_training)
-        return action
+    # def select_action(self, state: torch.FloatTensor, iteration: int, is_training: bool):
+    #     """Select the action based on the current state.
+    #
+    #     You will probably want to vary your behavior here based on
+    #     which stage of training your in. For example, if you're still
+    #     collecting random samples you might want to use a
+    #     UniformRandomPolicy.
+    #
+    #     If you're testing, you might want to use a GreedyEpsilonPolicy
+    #     with a low epsilon.
+    #
+    #     If you're training, you might want to use the
+    #     LinearDecayGreedyEpsilonPolicy.
+    #
+    #     This would also be a good place to call
+    #     process_state_for_network in your preprocessor.
+    #
+    #     Returns
+    #     --------
+    #     selected action
+    #     """
+    #     if is_training and iteration < self.num_burn_in:
+    #         action = self.policy.select_action()
+    #     else:
+    #         q_values = self.calc_q_values(state)
+    #         action = self.policy.select_action(q_values, is_training)
+    #     return action
 
     def fit(self, env: gym.Env, num_iterations: int, max_episode_length=None):
         """Fit your model to the provided environment.
@@ -233,17 +234,16 @@ class DQNAgent:
         self.logger.debug("Reset Environment Shape: {}".format(env.reset().shape))
         state_m: torch.ByteTensor = self.preprocessor.reset(env.reset())
         self.logger.debug("State Shape After Preprocess: {}".format(state_m.shape))
-        self.select_policy('Uniform', action_num)
-        switched = False
+        policy = self.select_policy(UniformRandomPolicy, action_num)
         losses, rewards = [], []
         epi_losses, epi_rewards = [], []
         # Need to add some loggings
         for iteration in tqdm(range(num_iterations), ncols=80):
             state_n: torch.FloatTensor = (state_m / 255).to(self.device)
-            if not switched and iteration >= self.num_burn_in:
-                switched = True
-                self.select_policy('LinearDecayGreedyEps', action_num)
-            action = self.select_action(state_n, iteration, is_training=True)
+            if iteration == self.num_burn_in:
+                self.logger.info("Start Training Q Network!")
+                policy = self.select_policy(LinearDecayGreedyEpsilonPolicy, action_num)
+            action = policy.select_action(state_n, self.calc_q_values, is_training=True)
             obs, reward, terminate, _ = env.step(action)
             # if reward != 0:
             #     print(iteration, reward)
@@ -315,15 +315,13 @@ class DQNAgent:
         action_num = env.action_space.n
         video_frames = [env.reset()]
         state: torch.ByteTensor = self.preprocessor.reset(video_frames[0])
-        # self.select_policy('GreedyEps', action_num)
-        # policy = GreedyEpsilonPolicy(0.05, action_num)
-        self.select_policy('GreedyEpsilonPolicy', action_num)
+        policy = self.select_policy(GreedyEpsilonPolicy, action_num)
         terminate = False
         total_reward = 0
         iteration = 0
         while not terminate:
             state_n = (state / 255).to(self.device)
-            action = self.select_action(state_n, iteration, is_training=False)
+            action = policy.select_action(state_n, self.calc_q_values, is_training=False)
             obs, reward, terminate, _ = env.step(action)
             total_reward += reward
             video_frames.append(obs)

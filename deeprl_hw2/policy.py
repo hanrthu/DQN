@@ -4,6 +4,8 @@ We have provided you with a base policy class, some example
 implementations and some unimplemented classes that should be useful
 in your code.
 """
+from collections.abc import Callable
+
 import numpy as np
 import torch
 
@@ -29,7 +31,7 @@ class UniformRandomPolicy(Policy):
         assert num_actions >= 1
         self.num_actions = num_actions
 
-    def select_action(self, **kwargs):
+    def select_action(self, *args, **kwargs):
         """Return a random action index.
 
         This policy cannot contain others (as they would just be ignored).
@@ -51,8 +53,8 @@ class GreedyPolicy(Policy):
     This is a pure exploitation policy.
     """
 
-    def select_action(self, q_values: torch.FloatTensor, **kwargs):  # noqa: D102
-        return q_values.argmax()
+    def select_action(self, q_values: torch.FloatTensor, *args, **kwargs):  # noqa: D102
+        return q_values.argmax().item()
 
 
 class GreedyEpsilonPolicy(Policy):
@@ -72,21 +74,28 @@ class GreedyEpsilonPolicy(Policy):
         self.eps = epsilon
         self.num_actions = num_actions
 
-    def select_action(self, q_values: torch.FloatTensor, **kwargs):
+    def select_action(
+        self,
+        state: torch.FloatTensor,
+        q_func: Callable[[torch.FloatTensor], torch.FloatTensor],
+        *args,
+        **kwargs
+    ):
         """Run Greedy-Epsilon for the given Q-values.
 
         Parameters
         ----------
-        q_values: array-like
-          Array-like structure of floats representing the Q-values for
-          each action.
-
+        state:
+            当前状态
+        q_func:
+            Q value 函数
         Returns
         -------
         int:
           The action index chosen.
         """
         p = np.random.rand()
+        q_values = q_func(state)
         if p > self.eps:
             # return np.argmax(q_values)
             return q_values.argmax().item()
@@ -112,9 +121,9 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
 
     """
 
-    def __init__(self, policy: Policy, attr_name, start_value, end_value,
+    def __init__(self, greedy_policy: GreedyPolicy, attr_name, start_value, end_value,
                  num_steps, num_actions):  # noqa: D102
-        self.policy = policy
+        self.greedy_policy = greedy_policy
         self.attr_name = attr_name
         self.start_value = start_value
         self.end_value = end_value
@@ -122,13 +131,22 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
         self.num_actions = num_actions
         self.current_step = 0
 
-    def select_action(self, q_values, is_training, **kwargs):
+    def select_action(
+        self,
+        state: torch.FloatTensor,
+        q_func: Callable[[torch.FloatTensor], torch.FloatTensor],
+        is_training: bool,
+        *args,
+        **kwargs
+    ):
         """Decay parameter and select action.
 
         Parameters
         ----------
-        q_values: np.array
-          The Q-values for each action.
+        state:
+            当前状态
+        q_func:
+            Q value 函数
         is_training: bool, optional
           If true then parameter will be decayed. Defaults to true.
 
@@ -139,13 +157,17 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
         """
         p = np.random.rand()
         if is_training:
-            eps = self.start_value + (self.end_value - self.start_value) * self.current_step / self.num_steps
+            if self.current_step > self.num_steps:
+                eps = self.end_value
+            else:
+                eps = self.start_value + (self.end_value - self.start_value) * self.current_step / self.num_steps
             self.current_step += 1
             # print("Current_step:{}. Current_eps:{}.".format(self.current_step, eps))
         else:
             eps = self.end_value
+
         if p > eps:
-            return self.policy.select_action(q_values)
+            return self.greedy_policy.select_action(q_func(state))
         else:
             return np.random.randint(0, self.num_actions)
 

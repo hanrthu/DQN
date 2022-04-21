@@ -174,10 +174,8 @@ def main():  # noqa: D103
     # here is where you should start up a session,
     # create your DQN agent, create your model, etc.
     # then you can run your fit method.
-    # env = gym.make("PongNoFrameskip-v4")
+    print(args.env)
     env = gym.make(args.env)
-    # env = gym.make('SpaceInvaders-v0')
-
     env = make_env(env)
     # print("0")
     num_actions = env.action_space.n
