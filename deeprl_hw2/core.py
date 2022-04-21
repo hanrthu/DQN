@@ -1,5 +1,7 @@
 """Core classes."""
+from collections.abc import Callable
 
+import torch
 
 class Sample:
     """Represents a reinforcement learning sample.
@@ -232,8 +234,15 @@ class Policy:
     random action will be chosen.
     """
 
-    def select_action(self, **kwargs):
+    def select_action(
+        self,
+        state: torch.FloatTensor,
+        q_func: Callable[[torch.FloatTensor], torch.FloatTensor],
+        is_training: bool,
+    ):
         """Used by agents to select actions.
+        q_func:
+            计算 Q value 的函数，由 policy 实现调用
 
         Returns
         -------
