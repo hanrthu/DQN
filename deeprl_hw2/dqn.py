@@ -240,17 +240,13 @@ class DQNAgent:
         # Need to add some loggings
         for iteration in tqdm(range(num_iterations), ncols=80):
             state_n: torch.FloatTensor = (state_m / 255).to(self.device)
-            # os.makedirs('./exps/{}'.format(self.args.expname), exist_ok=True)
-            # torch.save(
-            #     self.q_network.state_dict(), './exps/{}/{}-{}.pth'.format(self.args.expname, self.args.env, iteration)
-            # )
             if not switched and iteration >= self.num_burn_in:
                 switched = True
                 self.select_policy('LinearDecayGreedyEps', action_num)
             action = self.select_action(state_n, iteration, is_training=True)
             obs, reward, terminate, _ = env.step(action)
-            if reward != 0:
-                print(iteration, reward)
+            # if reward != 0:
+            #     print(iteration, reward)
             rewards.append(float(reward))
             reward = self.preprocessor.process_reward(reward)
             next_state: torch.ByteTensor = self.preprocessor.process_state_for_memory(obs)
@@ -301,7 +297,8 @@ class DQNAgent:
                     })
         return "Successfully Fit the model!"
 
-    def process_batch(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    # def process_batch(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    def process_batch(self, batch):
         for k, v in batch.items():
             batch[k] = v.to(self.device)
         with eval_model(self.qminus_network):

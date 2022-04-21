@@ -163,7 +163,7 @@ def main():  # noqa: D103
     # NUM_BURN_IN = 50000
     # NUM_BURN_IN = 100
     FINAL_EXPLORATION_FRAME = 500000
-    ITERATIONS = 3000000
+    ITERATIONS = 5000000
 
     # Initialize Logging and W&B Settings
     seed = 260817
@@ -175,7 +175,7 @@ def main():  # noqa: D103
     # create your DQN agent, create your model, etc.
     # then you can run your fit method.
     # env = gym.make("PongNoFrameskip-v4")
-    env = gym.make('Enduro-v0')
+    env = gym.make(args.env)
     # env = gym.make('SpaceInvaders-v0')
 
     env = make_env(env)

@@ -93,7 +93,8 @@ class AtariPreprocessor(Preprocessor):
     def __init__(self, new_size):
         self.new_size = new_size
 
-    def process_state_for_memory(self, image: np.ndarray[Any, np.uint8]) -> torch.ByteTensor:
+    # def process_state_for_memory(self, image: np.ndarray[Any, np.uint8]) -> torch.ByteTensor:
+    def process_state_for_memory(self, image):
         """Scale, convert to greyscale and store as uint8.
 
         We don't want to save floating point numbers in the replay
@@ -130,7 +131,8 @@ class AtariPreprocessor(Preprocessor):
         """Clip reward between -1 and 1."""
         return np.sign(reward)
 
-    def reset(self, image: np.ndarray[Any, np.uint8]):
+    # def reset(self, image: np.ndarray[Any, np.uint8]):
+    def reset(self, image):
         return self.process_state_for_memory(image)
 
 class PreprocessorSequence(Preprocessor):
@@ -146,7 +148,8 @@ class PreprocessorSequence(Preprocessor):
     state = atari.process_state_for_network(state)
     return history.process_state_for_network(state)
     """
-    def __init__(self, preprocessors: list[Preprocessor]):
+    # def __init__(self, preprocessors: list[Preprocessor]):
+    def __init__(self, preprocessors):
         self.preprocessors = preprocessors
 
     def process_state_for_memory(self, image) -> torch.ByteTensor:

@@ -221,6 +221,7 @@ def get_hard_target_model_updates(target, source):
     """
     target.load_state_dict(source.state_dict())
 
+
 class eval_model(torch.no_grad):
     def __init__(self, model: nn.Module):
         super().__init__()
