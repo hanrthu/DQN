@@ -249,8 +249,8 @@ class DQNAgent:
                 policy = self.select_policy(LinearDecayGreedyEpsilonPolicy, action_num)
             action = policy.select_action(state_n, self.calc_q_values, is_training=True)
             obs, reward, terminate, _ = env.step(action)
-            if reward != 0:
-                print(iteration, reward)
+            # if reward != 0:
+            #     print(iteration, reward)
             rewards.append(float(reward))
             reward = self.preprocessor.process_reward(reward)
             next_state: torch.ByteTensor = self.preprocessor.process_state_for_memory(obs)
