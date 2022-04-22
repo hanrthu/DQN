@@ -10,7 +10,7 @@ from matplotlib.backend_bases import KeyEvent
 import numpy as np
 import torch
 
-from deeprl_hw2.dqn import DQNAgent, DeepQNet
+from deeprl_hw2.dqn import DQNAgent, DeepQNet, LinearQNet
 from deeprl_hw2.policy import GreedyEpsilonPolicy, GreedyPolicy
 from deeprl_hw2.preprocessors import AtariPreprocessor, HistoryPreprocessor, PreprocessorSequence
 from deeprl_hw2.utils import make_env
@@ -61,7 +61,8 @@ def main():
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             num_actions = env.action_space.n
             HISTORY_LENGTH = 4
-            q_net = DeepQNet(HISTORY_LENGTH, num_actions, large=False).to(device)
+            # q_net = DeepQNet(HISTORY_LENGTH, num_actions, large=False).to(device)
+            q_net = LinearQNet(HISTORY_LENGTH, num_actions)
             q_net.load_state_dict(torch.load(args.model_path))
             atari_pro = AtariPreprocessor(84)
             history_pro = HistoryPreprocessor(HISTORY_LENGTH)

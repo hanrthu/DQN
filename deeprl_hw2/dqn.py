@@ -288,7 +288,7 @@ class DQNAgent:
                     self.optimizer.zero_grad()
                 if iteration % self.t_update_freq == 0:
                     get_hard_target_model_updates(self.qminus_network, self.q_network)
-                if iteration % (num_iterations // 3) == 0:
+                if iteration % (num_iterations // 3) == 0 or iteration % 200000 == 0:
                     os.makedirs('./exps/{}'.format(self.args.expname), exist_ok=True)
                     torch.save(
                         self.q_network.state_dict(),
