@@ -142,6 +142,7 @@ def main():  # noqa: D103
     parser.add_argument('--max_memory_size', default=1000000, type=int)
     parser.add_argument('--num_burn_in', default=50000, type=int)
     parser.add_argument('--batch_size', default=32, type=int)
+    parser.add_argument('--iterations', default=10000000, type=int)
     args = parser.parse_args()
     # print(args)
     args.input_shape = tuple(args.input_shape)
@@ -163,12 +164,12 @@ def main():  # noqa: D103
     # NUM_BURN_IN = 50000
     # NUM_BURN_IN = 100
     FINAL_EXPLORATION_FRAME = 500000
-    ITERATIONS = 5000000
+    # ITERATIONS = 3000000
 
     # Initialize Logging and W&B Settings
     seed = 260817
     logger = create_logger()
-    init_wandb(LR, ITERATIONS, MOMENTUM, args.expname)
+    init_wandb(LR, args.iterations, MOMENTUM, args.expname)
     init_random_state(seed)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     # here is where you should start up a session,
@@ -208,7 +209,7 @@ def main():  # noqa: D103
         TRAIN_FREQ,
         EVAL_FREQ,
         args.batch_size,
-        ITERATIONS,
+        args.iterations,
         FINAL_EXPLORATION_FRAME,
         optimizer,
         scheduler,
@@ -218,7 +219,7 @@ def main():  # noqa: D103
     )
     if args.train:
         logger.info("Start Training Q Networks...")
-        agent.fit(env, ITERATIONS)
+        agent.fit(env, args.iterations)
         wandb.save('model.h5')
     if args.test:
         logger.info("Start Testing Q Networks...")

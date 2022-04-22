@@ -105,6 +105,8 @@ class AtariPreprocessor(Preprocessor):
         image conversions.
         """
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        size = min(image.shape)
+        image = image[:size, :size]
         image = cv2.resize(image, (self.new_size, self.new_size), interpolation=cv2.INTER_LINEAR)
         return torch.tensor(image)  # type: ignore
 
