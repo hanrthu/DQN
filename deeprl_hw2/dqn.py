@@ -1,5 +1,7 @@
 """Main DQN agent."""
+from collections import Counter
 import os
+from pathlib import Path
 from typing import Type
 
 import gym
@@ -237,6 +239,8 @@ class DQNAgent:
         policy = self.select_policy(UniformRandomPolicy, action_num)
         losses, rewards = [], []
         epi_losses, epi_rewards = [], []
+        output_dir = Path(f'exps/{self.args.expname}')
+        output_dir.mkdir(parents=True, exist_ok=True)
         # Need to add some loggings
         for iteration in tqdm(range(num_iterations), ncols=80):
             state_n: torch.FloatTensor = (state_m / 255).to(self.device)
@@ -284,10 +288,9 @@ class DQNAgent:
                 if iteration % self.t_update_freq == 0:
                     get_hard_target_model_updates(self.qminus_network, self.q_network)
                 if iteration % (num_iterations // 3) == 0 or iteration % 200000 == 0:
-                    os.makedirs('./exps/{}'.format(self.args.expname), exist_ok=True)
                     torch.save(
                         self.q_network.state_dict(),
-                        './exps/{}/{}-{}.pth'.format(self.args.expname, self.args.env, iteration)
+                        output_dir / f'{self.args.env}-{iteration}.pth'
                     )
                 if iteration % self.eval_freq == 0:
                     self.logger.info("Evaluating Q Network at iteration {}...".format(iteration))
