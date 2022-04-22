@@ -34,13 +34,13 @@ class DeepQNet(nn.Module):
             )
         else:
             self.backbone = nn.Sequential(
-                nn.Conv2d(kernel_size=8, in_channels=input_channels, out_channels=32, stride=4),
+                nn.Conv2d(kernel_size=8, in_channels=input_channels, out_channels=16, stride=4),
                 nn.ReLU(),
-                nn.Conv2d(kernel_size=4, in_channels=32, out_channels=64, stride=2),
+                nn.Conv2d(kernel_size=4, in_channels=16, out_channels=32, stride=2),
                 nn.ReLU(),
             )
             self.linear = nn.Sequential(
-                nn.Linear(in_features=64 * 9 * 9, out_features=256),
+                nn.Linear(in_features=32 * 9 * 9, out_features=256),
                 nn.ReLU(),
                 nn.Linear(in_features=256, out_features=num_actions)
             )
@@ -48,7 +48,6 @@ class DeepQNet(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.backbone(x)
         # print(x.shape)
-        x = x.contiguous()
         q_value = self.linear(x.view(x.shape[0], -1))
         return q_value
 
@@ -59,7 +58,6 @@ class LinearQNet(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # print("X_shape:", x.shape)
-        x = x.contiguous()
         x = x.view(x.shape[0], -1)
         # print("X_reshaped:", x.shape)
         return self.linear(x)
