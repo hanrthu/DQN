@@ -141,6 +141,7 @@ class DQNAgent:
         self.args = args
         self.logger = logger
         self.eval_freq = eval_freq
+        self.double_q = self.args.double_q
         # self.policy = None
 
     def calc_q_values(self, state: torch.FloatTensor) -> torch.FloatTensor:
@@ -283,7 +284,7 @@ class DQNAgent:
                     self.optimizer.zero_grad()
                 if iteration % self.t_update_freq == 0:
                     get_hard_target_model_updates(self.qminus_network, self.q_network)
-                if iteration % (num_iterations // 3) == 0 or iteration % 200000 == 0:
+                if iteration % (num_iterations // 3) == 0:
                     os.makedirs('./exps/{}'.format(self.args.expname), exist_ok=True)
                     torch.save(
                         self.q_network.state_dict(),
@@ -302,7 +303,15 @@ class DQNAgent:
             batch[k] = v.to(self.device)
         with eval_model(self.qminus_network):
             qn = self.qminus_network(batch['next_state'])
-        q_target = batch['reward'] + self.gamma * qn.max(dim=-1)[0]
+        if self.double_q:
+            with eval_model(self.q_network):
+                q = self.q_network(batch['next_state'])
+            # print("Q Value:", q)
+            print("Q Index:", q.argmax(dim=-1))
+            print("Q_n::", qn.shape)
+            q_target = batch['reward'] + self.gamma * qn[range(self.batch_size), q.argmax(dim=-1)]
+        else:
+            q_target = batch['reward'] + self.gamma * qn.max(dim=-1)[0]
         q_target[batch['terminate']] = batch['reward'][batch['terminate']]
         return {
             'state': batch['state'],

@@ -142,11 +142,13 @@ def main():  # noqa: D103
     parser.add_argument('--max_memory_size', default=1000000, type=int)
     parser.add_argument('--num_burn_in', default=50000, type=int)
     parser.add_argument('--batch_size', default=32, type=int)
-    parser.add_argument('--iterations', default=10000000, type=int)
+    parser.add_argument('--iterations', default=5000000, type=int)
+    parser.add_argument('--double_q', default=False, action='store_true', help='Choose whether to use double DQN')
     args = parser.parse_args()
     # print(args)
     args.input_shape = tuple(args.input_shape)
     args.output = get_output_folder(args.output, args.env)
+
 
     # hyper-parameters
     # BATCH_SIZE = 32
@@ -164,7 +166,7 @@ def main():  # noqa: D103
     # NUM_BURN_IN = 50000
     # NUM_BURN_IN = 100
     FINAL_EXPLORATION_FRAME = 500000
-    # ITERATIONS = 3000000
+    ITERATIONS = 5000000
 
     # Initialize Logging and W&B Settings
     seed = 260817
