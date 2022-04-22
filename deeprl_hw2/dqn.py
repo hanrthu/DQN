@@ -143,7 +143,8 @@ class DQNAgent:
         self.args = args
         self.logger = logger
         self.eval_freq = eval_freq
-        self.double_q = self.args.double_q
+        if self.args is not None:
+            self.double_q = self.args.double_q
         # self.policy = None
 
     def calc_q_values(self, state: torch.FloatTensor) -> torch.FloatTensor:

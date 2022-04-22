@@ -1,7 +1,7 @@
+from argparse import ArgumentParser
 import logging
 from pathlib import Path
-import time
-from argparse import ArgumentParser
+import random
 from typing import Any, Optional
 
 import gym
@@ -10,12 +10,12 @@ from matplotlib.backend_bases import KeyEvent
 import numpy as np
 import torch
 
-from deeprl_hw2.dqn import DQNAgent, DeepQNet, LinearQNet
-from deeprl_hw2.policy import GreedyEpsilonPolicy, GreedyPolicy
+from deeprl_hw2.dqn import DQNAgent, DeepQNet
+from deeprl_hw2.policy import GreedyPolicy
 from deeprl_hw2.preprocessors import AtariPreprocessor, HistoryPreprocessor, PreprocessorSequence
 from deeprl_hw2.utils import make_env
 
-env = gym.make('Enduro-v0')
+env = gym.make('SpaceInvaders-v0')
 env = make_env(env)
 
 plt.ion()
@@ -54,15 +54,15 @@ def main():
     else:
         plt.show()
         if args.model_path is None:
-            while not act(1)[0]:
+            while not act(random.randint(0, env.action_space.n - 1))[0]:
                 # time.sleep(3)
-                plt.pause(0.001)
+                plt.pause(0.1)
         else:
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             num_actions = env.action_space.n
             HISTORY_LENGTH = 4
-            # q_net = DeepQNet(HISTORY_LENGTH, num_actions, large=False).to(device)
-            q_net = LinearQNet(HISTORY_LENGTH, num_actions)
+            q_net = DeepQNet(HISTORY_LENGTH, num_actions, large=False).to(device)
+            # q_net = LinearQNet(HISTORY_LENGTH, num_actions)
             q_net.load_state_dict(torch.load(args.model_path))
             atari_pro = AtariPreprocessor(84)
             history_pro = HistoryPreprocessor(HISTORY_LENGTH)
@@ -99,7 +99,7 @@ def main():
                 state_n = (state / 255).to(device)
                 action = policy.select_action(state_n, agent.calc_q_values, is_training=False)
                 terminate, obs = act(action)
-                plt.pause(0.02)
+                plt.pause(0.1)
                 state = preprocessor.process_state_for_memory(obs)
                 iteration += 1
 
