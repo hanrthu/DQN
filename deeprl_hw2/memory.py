@@ -88,7 +88,7 @@ class ReplayMemory(Memory):
         terminate: int
     ):
         if self.size >= self.warmup_size:
-            reward_weights = np.sqrt(list(self.reward_counter.values()))
+            reward_weights = 1 / np.sqrt(list(self.reward_counter.values()))
             if np.random.choice(list(self.reward_counter), p=reward_weights / reward_weights.sum()) != reward:
                 return
 
