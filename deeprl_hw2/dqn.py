@@ -297,8 +297,7 @@ class DQNAgent:
                     })
         return "Successfully Fit the model!"
 
-    # def process_batch(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-    def process_batch(self, batch):
+    def process_batch(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         for k, v in batch.items():
             batch[k] = v.to(self.device)
         with eval_model(self.qminus_network):

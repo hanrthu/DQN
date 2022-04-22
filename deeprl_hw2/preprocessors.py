@@ -93,8 +93,7 @@ class AtariPreprocessor(Preprocessor):
     def __init__(self, new_size):
         self.new_size = new_size
 
-    # def process_state_for_memory(self, image: np.ndarray[Any, np.uint8]) -> torch.ByteTensor:
-    def process_state_for_memory(self, image):
+    def process_state_for_memory(self, image: np.ndarray[Any, np.uint8]) -> torch.ByteTensor:
         """Scale, convert to greyscale and store as uint8.
 
         We don't want to save floating point numbers in the replay
