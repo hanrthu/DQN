@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections import Counter
+import random
+
 import numpy as np
 import torch
 
@@ -53,7 +56,7 @@ class ReplayMemory(Memory):
     clear()
       Reset the memory. Deletes all references to the samples.
     """
-    def __init__(self, max_size: int, img_size: int, history_len: int, device: torch.device | str):
+    def __init__(self, max_size: int, img_size: int, history_len: int, device: torch.device | str, warmup_size: int = 50000):
         """Setup memory.
 
         You should specify the maximum size of the memory. Once the
@@ -73,6 +76,8 @@ class ReplayMemory(Memory):
         self.action = torch.zeros(max_size, dtype=torch.long)
         self.terminate = torch.zeros(max_size, dtype=torch.bool)
         self.device = device
+        self.reward_counter = Counter()
+        self.warmup_size = warmup_size
 
     def append(
         self,
@@ -82,14 +87,25 @@ class ReplayMemory(Memory):
         next_state: torch.ByteTensor,
         terminate: int
     ):
+        if self.size >= self.warmup_size:
+            reward_weights = np.sqrt(list(self.reward_counter.values()))
+            if np.random.choice(list(self.reward_counter), p=reward_weights / reward_weights.sum()) != reward:
+                return
+
         idx = self.replace_idx
+        if self.size == self.cap:
+            self.reward_counter[self.reward[idx]] -= 1
         self.state[idx] = state
         self.action[idx] = action
         self.reward[idx] = reward
+        self.reward_counter[reward] += 1
         self.next_state[idx] = next_state
-        self.replace_idx = (self.replace_idx + 1) % self.cap
         if self.size < self.cap:
             self.size += 1
+
+        self.replace_idx = (self.replace_idx + 1) % self.cap
+        if self.replace_idx % self.warmup_size == 0:
+            print(self.reward_counter)
 
     def sample(self, batch_size, indexes=None) -> dict[str, torch.Tensor]:
         idx = np.random.randint(self.size, size=batch_size)
@@ -107,3 +123,4 @@ class ReplayMemory(Memory):
 
     def clear(self):
         self.size = self.replace_idx = 0
+        self.reward_counter.clear()

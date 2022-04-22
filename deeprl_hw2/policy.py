@@ -53,7 +53,16 @@ class GreedyPolicy(Policy):
     This is a pure exploitation policy.
     """
 
-    def select_action(self, q_values: torch.FloatTensor, *args, **kwargs):  # noqa: D102
+    def select_action(
+        self,
+        state: torch.FloatTensor,
+        q_func: Callable[[torch.FloatTensor], torch.FloatTensor],
+        *args,
+        **kwargs
+    ):  # noqa: D102
+        q_values = q_func(state)
+        # debug
+        # q_values_numpy = q_values.cpu().numpy().T
         return q_values.argmax().item()
 
 
@@ -167,7 +176,7 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
             eps = self.end_value
 
         if p > eps:
-            return self.greedy_policy.select_action(q_func(state))
+            return self.greedy_policy.select_action(state, q_func)
         else:
             return np.random.randint(0, self.num_actions)
 
