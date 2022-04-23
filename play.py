@@ -23,14 +23,14 @@ fig = plt.gcf()
 tot = 0
 step = 0
 
-def act(action: int) -> tuple[bool, Optional[np.ndarray[Any, np.uint8]]]:
+def act(action: int, qv: float) -> tuple[bool, Optional[np.ndarray[Any, np.uint8]]]:
     global tot, step
     if action not in range(env.action_space.n):
         return False, None
     obs, reward, terminate, _ = env.step(action)
     im.set_data(obs)
     # fig.canvas.draw_idle()
-    print(f'{step}\t{action}\t{reward}\t{terminate}\t{tot}')
+    print(f'{step}\t{action}\t{reward}\t{terminate}\t{tot}\t{qv}')
     tot += reward
     step += 1
     return terminate, obs
@@ -98,8 +98,11 @@ def main():
             while not terminate:
                 state_n = (state / 255).to(device)
                 action = policy.select_action(state_n, agent.calc_q_values, is_training=False)
-                terminate, obs = act(action)
-                plt.pause(0.001)
+                qv = torch.max(agent.calc_q_values(state_n)).item()
+                if qv < 0:
+                    print('danger')
+                terminate, obs = act(action, qv)
+                plt.pause(0.05)
                 state = preprocessor.process_state_for_memory(obs)
                 iteration += 1
 
