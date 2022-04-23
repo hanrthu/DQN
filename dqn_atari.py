@@ -150,6 +150,7 @@ def main():  # noqa: D103
     parser.add_argument('--lr', default=2.5e-4, type=float)
     parser.add_argument('--life_penalty', default=0, type=float)
     parser.add_argument('--loss', default='sl1', choices=['sl1', 'mse'])
+    parser.add_argument('--duel', default=False, action='store_true', help='Choose whether to use duel architecture')
     args = parser.parse_args()
     print(args)
     args.input_shape = tuple(args.input_shape)
@@ -191,9 +192,9 @@ def main():  # noqa: D103
     num_actions = env.action_space.n
     # print(num_actions)
     if args.deep:
-        q_net = DeepQNet(HISTORY_LENGTH, num_actions, args.large).to(device)
+        q_net = DeepQNet(HISTORY_LENGTH, num_actions, args.large, args.duel).to(device)
         print(q_net)
-        qminus_net = DeepQNet(HISTORY_LENGTH, num_actions, args.large).to(device)
+        qminus_net = DeepQNet(HISTORY_LENGTH, num_actions, args.large, args.duel).to(device)
     else:
         q_net = LinearQNet(HISTORY_LENGTH, num_actions).to(device)
         qminus_net = LinearQNet(HISTORY_LENGTH, num_actions).to(device)
@@ -202,7 +203,7 @@ def main():  # noqa: D103
     wandb.watch(q_net, log="all")
     if args.optimizer == 'rmsprop':
         optimizer = torch.optim.RMSprop(q_net.parameters(), lr=args.lr, eps=0.001, alpha=0.95)
-    elif args.optimizer == 'adam':
+    elif args.optimizer == 'adam'
         optimizer = torch.optim.Adam(q_net.parameters(), lr=args.lr)
     else:
         raise ValueError
