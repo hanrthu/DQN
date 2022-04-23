@@ -287,6 +287,9 @@ class DQNAgent:
                     self.optimizer.step()
                     self.scheduler.step()
                     self.optimizer.zero_grad()
+                    wandb.log({
+                        "LR": self.optimizer.param_groups[0]['lr']
+                    })
                 if iteration % self.t_update_freq == 0:
                     get_hard_target_model_updates(self.qminus_network, self.q_network)
                 if iteration % (num_iterations // 3) == 0 or iteration % 200000 == 0:
@@ -312,8 +315,8 @@ class DQNAgent:
             with eval_model(self.q_network):
                 q = self.q_network(batch['next_state'])
             # print("Q Value:", q)
-            print("Q Index:", q.argmax(dim=-1))
-            print("Q_n::", qn.shape)
+            # print("Q Index:", q.argmax(dim=-1))
+            # print("Q_n::", qn.shape)
             q_target = batch['reward'] + self.gamma * qn[range(self.batch_size), q.argmax(dim=-1)]
         else:
             q_target = batch['reward'] + self.gamma * qn.max(dim=-1)[0]

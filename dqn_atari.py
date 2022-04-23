@@ -193,7 +193,7 @@ def main():  # noqa: D103
         q_net.load_state_dict(torch.load(args.weights))
     wandb.watch(q_net, log="all")
     optimizer = optim.RMSprop(params=q_net.parameters(), lr=LR, momentum=MOMENTUM)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=5000, gamma=0.999)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.999)
     atari_pro = AtariPreprocessor(args.resize)
     history_pro = HistoryPreprocessor(HISTORY_LENGTH)
     preprocessor = PreprocessorSequence([atari_pro, history_pro])
