@@ -169,15 +169,19 @@ class DQNAgent:
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.device = device
-        self.criterion = torch.nn.MSELoss()
 
-        print('criterion:', self.criterion)
         self.args = args
         self.logger = logger
         self.eval_freq = eval_freq
         if self.args is not None:
             self.double_q = self.args.double_q
-        # self.policy = None
+            if args.loss == 'mse':
+                self.criterion = torch.nn.MSELoss()
+            elif args.loss == 'sl1':
+                self.criterion = torch.nn.SmoothL1Loss()
+            else:
+                raise ValueError
+            print('criterion:', self.criterion)
 
     def calc_q_values(self, state: torch.FloatTensor) -> torch.FloatTensor:
         """Given a state (or batch of states) calculate the Q-values.

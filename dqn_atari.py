@@ -149,7 +149,7 @@ def main():  # noqa: D103
     parser.add_argument('--optimizer', choices=['rmsprop', 'adam'], default='rmsprop')
     parser.add_argument('--lr', default=2.5e-4, type=float)
     parser.add_argument('--life_penalty', default=0, type=float)
-    parser.add_argument('--duel', default=False, action='store_true', help='Choose whether to use duel architecture')
+    parser.add_argument('--loss', default='sl1', choices=['sl1', 'mse'])
     args = parser.parse_args()
     print(args)
     args.input_shape = tuple(args.input_shape)
@@ -191,9 +191,9 @@ def main():  # noqa: D103
     num_actions = env.action_space.n
     # print(num_actions)
     if args.deep:
-        q_net = DeepQNet(HISTORY_LENGTH, num_actions, args.large, args.duel).to(device)
+        q_net = DeepQNet(HISTORY_LENGTH, num_actions, args.large).to(device)
         print(q_net)
-        qminus_net = DeepQNet(HISTORY_LENGTH, num_actions, args.large, args.duel).to(device)
+        qminus_net = DeepQNet(HISTORY_LENGTH, num_actions, args.large).to(device)
     else:
         q_net = LinearQNet(HISTORY_LENGTH, num_actions).to(device)
         qminus_net = LinearQNet(HISTORY_LENGTH, num_actions).to(device)
