@@ -319,8 +319,8 @@ class DQNAgent:
             with eval_model(self.q_network):
                 q = self.q_network(batch['next_state'])
             # print("Q Value:", q)
-            print("Q Index:", q.argmax(dim=-1))
-            print("Q_n::", qn.shape)
+            # print("Q Index:", q.argmax(dim=-1))
+            # print("Q_n::", qn.shape)
             q_target = batch['reward'] + self.gamma * qn[range(self.batch_size), q.argmax(dim=-1)]
         else:
             q_target = batch['reward'] + self.gamma * qn.max(dim=-1)[0]
@@ -331,11 +331,9 @@ class DQNAgent:
             'action': batch['action'],
         }
 
-    def evaluate_episode(self, env, max_episode_length=None):
-        action_num = env.action_space.n
+    def evaluate_episode(self, env,policy, max_episode_length=None):
         video_frames = [env.reset()]
         state: torch.ByteTensor = self.preprocessor.reset(video_frames[0])
-        policy = self.select_policy(GreedyEpsilonPolicy, action_num)
         terminate = False
         total_reward = 0
         iteration = 0
@@ -365,8 +363,10 @@ class DQNAgent:
         self.q_network.eval()
         reward_list = []
         video_list = []
+        action_num = env.action_space.n
+        policy = self.select_policy(GreedyEpsilonPolicy, action_num)
         for i in tqdm(range(num_episodes), ncols=80):
-            reward_epi, video_epi = self.evaluate_episode(env)
+            reward_epi, video_epi = self.evaluate_episode(env, policy)
             reward_list.append(reward_epi)
             video_list.append(video_epi)
         # print("Mean Reward:", np.mean(reward_list))

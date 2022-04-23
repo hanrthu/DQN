@@ -104,8 +104,8 @@ class GreedyEpsilonPolicy(Policy):
           The action index chosen.
         """
         p = np.random.rand()
-        q_values = q_func(state)
         if p > self.eps:
+            q_values = q_func(state)
             # return np.argmax(q_values)
             return q_values.argmax().item()
         else:
