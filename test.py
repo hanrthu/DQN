@@ -1,3 +1,6 @@
+from argparse import ArgumentParser
+from pathlib import Path
+
 import gym
 
 import numpy as np
@@ -8,6 +11,9 @@ env = gym.make('Enduro-v0')
 env = make_env(env)
 
 def main():
+    parser = ArgumentParser()
+    parser.add_argument('--large', action='store_true')
+    parser.add_argument('--model_path', type=Path, default=None)
     results = []
     for _ in range(20):
         env.reset()

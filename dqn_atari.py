@@ -146,6 +146,7 @@ def main():  # noqa: D103
     parser.add_argument('--double_q', default=False, action='store_true', help='Choose whether to use double DQN')
     parser.add_argument('--train_freq', default=4, type=int)
     parser.add_argument('--scheduler_step_size', default=500, type=int)
+    parser.add_argument('--optimizer', choices=['rmsprop', 'adam'], default='rmsprop')
     parser.add_argument('--lr', default=2.5e-4, type=float)
     args = parser.parse_args()
     print(args)
@@ -196,8 +197,14 @@ def main():  # noqa: D103
     if args.weights is not None:
         q_net.load_state_dict(torch.load(args.weights))
     wandb.watch(q_net, log="all")
-    optimizer = torch.optim.RMSprop(q_net.parameters(), lr=args.lr, eps=0.001, alpha=0.95)
+    if args.optimizer == 'rmsprop':
+        optimizer = torch.optim.RMSprop(q_net.parameters(), lr=args.lr, eps=0.001, alpha=0.95)
+    elif args.optimizer == 'adam':
+        optimizer = torch.optim.Adam(q_net.parameters(), lr=args.lr)
+    else:
+        raise ValueError
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.scheduler_step_size, gamma=0.999)
+    print(optimizer)
     print('start lr:', args.lr)
     print('final lr:', args.lr * 0.999 ** (args.iterations / (args.scheduler_step_size * args.train_freq)))
     atari_pro = AtariPreprocessor(args.resize)
