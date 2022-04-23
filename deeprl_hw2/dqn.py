@@ -137,7 +137,8 @@ class DQNAgent:
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.device = device
-        self.criterion = torch.nn.SmoothL1Loss()
+        self.criterion = torch.nn.MSELoss()
+        print('criterion:', self.criterion)
         self.args = args
         self.logger = logger
         self.eval_freq = eval_freq
@@ -154,11 +155,12 @@ class DQNAgent:
         ------
         Q-values for the state(s)
         """
-        if len(state.shape) == 3:
+        state_dim = state.ndim
+        if state_dim == 3:
             state = state[None]
         with eval_model(self.q_network):
             q_values = self.q_network(state)
-        if len(state.shape) == 3:
+        if state_dim == 3:
             q_values = q_values[0]
         return q_values
 
