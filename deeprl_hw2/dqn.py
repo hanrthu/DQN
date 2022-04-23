@@ -16,8 +16,9 @@ from deeprl_hw2.policy import GreedyEpsilonPolicy, GreedyPolicy, LinearDecayGree
 from deeprl_hw2.utils import eval_model, get_hard_target_model_updates
 
 class DeepQNet(nn.Module):
-    def __init__(self, input_channels, num_actions, large=False):
+    def __init__(self, input_channels, num_actions, large=False, duel=False):
         super(DeepQNet, self).__init__()
+        self.duel = duel
         if large:
             self.backbone = nn.Sequential(
                 nn.Conv2d(kernel_size=8, in_channels=input_channels, out_channels=32, stride=4),
@@ -27,11 +28,26 @@ class DeepQNet(nn.Module):
                 nn.Conv2d(kernel_size=3, in_channels=64, out_channels=64, stride=1),
                 nn.ReLU(),
             )
-            self.linear = nn.Sequential(
-                nn.Linear(in_features=64 * 7 * 7, out_features=512),
-                nn.ReLU(),
-                nn.Linear(in_features=512, out_features=num_actions)
-            )
+            if duel:
+                self.linear = nn.Linear(in_features=64 * 7 * 7, out_features=512)
+                self.v_linear = nn.Sequential(
+                    nn.ReLU(),
+                    nn.Linear(in_features=512, out_features=128),
+                    nn.ReLU(),
+                    nn.Linear(in_features=128, out_features=1)
+                )
+                self.a_linear = nn.Sequential(
+                    nn.ReLU(),
+                    nn.Linear(in_features=512, out_features=128),
+                    nn.ReLU(),
+                    nn.Linear(in_features=128, out_features=num_actions)
+                )
+            else:
+                self.linear = nn.Sequential(
+                    nn.Linear(in_features=64 * 7 * 7, out_features=512),
+                    nn.ReLU(),
+                    nn.Linear(in_features=512, out_features=num_actions)
+                )
         else:
             self.backbone = nn.Sequential(
                 nn.Conv2d(kernel_size=8, in_channels=input_channels, out_channels=16, stride=4),
@@ -39,17 +55,33 @@ class DeepQNet(nn.Module):
                 nn.Conv2d(kernel_size=4, in_channels=16, out_channels=32, stride=2),
                 nn.ReLU(),
             )
-            self.linear = nn.Sequential(
-                nn.Linear(in_features=32 * 9 * 9, out_features=256),
-                nn.ReLU(),
-                nn.Linear(in_features=256, out_features=num_actions)
-            )
+            if duel:
+                self.linear = nn.Linear(in_features=32 * 9 * 9, out_features=256)
+                self.v_linear = nn.Sequential(
+                    nn.ReLU(),
+                    nn.Linear(in_features=256, out_features=1),
+                )
+                self.a_linear = nn.Sequential(
+                    nn.ReLU(),
+                    nn.Linear(in_features=256, out_features=num_actions)
+                )
+            else:
+                self.linear = nn.Sequential(
+                    nn.Linear(in_features=32 * 9 * 9, out_features=256),
+                    nn.ReLU(),
+                    nn.Linear(in_features=256, out_features=num_actions)
+                )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.backbone(x)
         # print(x.shape)
         q_value = self.linear(x.view(x.shape[0], -1))
+        if self.duel:
+            s_value = self.v_linear(q_value)
+            a_value = self.a_linear(q_value)
+            q_value = s_value + (a_value - torch.mean(a_value, dim=-1, keepdim=True))
         return q_value
+
 
 class LinearQNet(nn.Module):
     def __init__(self, input_channels, num_actions):
@@ -138,6 +170,7 @@ class DQNAgent:
         self.scheduler = scheduler
         self.device = device
         self.criterion = torch.nn.MSELoss()
+
         print('criterion:', self.criterion)
         self.args = args
         self.logger = logger

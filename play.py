@@ -23,6 +23,7 @@ fig = plt.gcf()
 tot = 0
 step = 0
 
+
 def act(action: int, qv: Optional[float] = None) -> tuple[bool, Optional[np.ndarray[Any, np.uint8]]]:
     global tot, step
     if action not in range(env.action_space.n):
