@@ -8,7 +8,7 @@ from collections.abc import Callable
 
 import numpy as np
 import torch
-
+import wandb
 from deeprl_hw2.core import Policy
 
 class UniformRandomPolicy(Policy):
@@ -173,8 +173,10 @@ class LinearDecayGreedyEpsilonPolicy(Policy):
             self.current_step += 1
             # print("Current_step:{}. Current_eps:{}.".format(self.current_step, eps))
         else:
-            eps = self.end_value
-
+            eps = self.end_value 
+        wandb.log({
+            'Epsilon': eps
+        })
         if p > eps:
             return self.greedy_policy.select_action(state, q_func)
         else:

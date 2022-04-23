@@ -23,7 +23,8 @@ fig = plt.gcf()
 tot = 0
 step = 0
 
-def act(action: int, qv: float) -> tuple[bool, Optional[np.ndarray[Any, np.uint8]]]:
+
+def act(action: int, qv: Optional[float] = None) -> tuple[bool, Optional[np.ndarray[Any, np.uint8]]]:
     global tot, step
     if action not in range(env.action_space.n):
         return False, None
@@ -97,12 +98,13 @@ def main():
             iteration = 0
             while not terminate:
                 state_n = (state / 255).to(device)
-                action = policy.select_action(state_n, agent.calc_q_values, is_training=False)
-                qv = torch.max(agent.calc_q_values(state_n)).item()
-                if qv < 0:
-                    print('danger')
+                q_values = agent.calc_q_values(state_n)
+                qv, action = map(torch.Tensor.item, q_values.max(dim=0))
+                # action = policy.select_action(state_n, agent.calc_q_values, is_training=False)
                 terminate, obs = act(action, qv)
-                plt.pause(0.05)
+                if qv < 8:
+                    print('danger')
+                plt.pause(0.001)
                 state = preprocessor.process_state_for_memory(obs)
                 iteration += 1
 
