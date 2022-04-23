@@ -40,7 +40,8 @@ def act(action: int) -> tuple[bool, Optional[np.ndarray[Any, np.uint8]]]:
 def main():
     parser = ArgumentParser()
     parser.add_argument('-i', action='store_true')
-    parser.add_argument('--model_path', type=Path, default=None)
+    parser.add_argument('--large', action='store_true')
+    parser.add_argument('--weights', type=Path, default=None)
     args = parser.parse_args()
     if args.i:
         def on_key_press(event: KeyEvent):
@@ -53,7 +54,7 @@ def main():
         plt.show(block=True)
     else:
         plt.show()
-        if args.model_path is None:
+        if args.weights is None:
             while not act(random.randint(0, env.action_space.n - 1))[0]:
                 # time.sleep(3)
                 plt.pause(0.1)
@@ -61,9 +62,10 @@ def main():
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             num_actions = env.action_space.n
             HISTORY_LENGTH = 4
-            q_net = DeepQNet(HISTORY_LENGTH, num_actions, large=False).to(device)
+            q_net = DeepQNet(HISTORY_LENGTH, num_actions, args.large).to(device)
             # q_net = LinearQNet(HISTORY_LENGTH, num_actions)
-            q_net.load_state_dict(torch.load(args.model_path))
+            q_net.load_state_dict(torch.load(args.weights))
+            print(f'load state dict from {args.weights}')
             atari_pro = AtariPreprocessor(84)
             history_pro = HistoryPreprocessor(HISTORY_LENGTH)
             preprocessor = PreprocessorSequence([atari_pro, history_pro])
@@ -99,7 +101,7 @@ def main():
                 state_n = (state / 255).to(device)
                 action = policy.select_action(state_n, agent.calc_q_values, is_training=False)
                 terminate, obs = act(action)
-                plt.pause(0.1)
+                plt.pause(0.01)
                 state = preprocessor.process_state_for_memory(obs)
                 iteration += 1
 

@@ -144,8 +144,12 @@ def main():  # noqa: D103
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--iterations', default=5000000, type=int)
     parser.add_argument('--double_q', default=False, action='store_true', help='Choose whether to use double DQN')
+    parser.add_argument('--train_freq', default=4, type=int)
+    parser.add_argument('--scheduler_step_size', default=500, type=int)
+    parser.add_argument('--optimizer', choices=['rmsprop', 'adam'], default='rmsprop')
+    parser.add_argument('--lr', default=2.5e-4, type=float)
     args = parser.parse_args()
-    # print(args)
+    print(args)
     args.input_shape = tuple(args.input_shape)
     args.output = get_output_folder(args.output, args.env)
 
@@ -156,22 +160,22 @@ def main():  # noqa: D103
     HISTORY_LENGTH = 4
     TARGET_UPDATE_FREQ = 10000
     GAMMA = 0.99
-    TRAIN_FREQ = 4
+    # TRAIN_FREQ = 4
     EVAL_FREQ = 40000
     # EVAL_FREQ = 1000
-    LR = 2.5e-4
+    # LR = 2.5e-4
     MOMENTUM = 0.95
     START_EPS = 1.0
     END_EPS = 0.1
     # NUM_BURN_IN = 50000
     # NUM_BURN_IN = 100
     FINAL_EXPLORATION_FRAME = 500000
-    ITERATIONS = 5000000
+    # ITERATIONS = 5000000
 
     # Initialize Logging and W&B Settings
     seed = 260817
     logger = create_logger()
-    init_wandb(LR, args.iterations, MOMENTUM, args.expname)
+    init_wandb(args.lr, args.iterations, MOMENTUM, args.expname)
     init_random_state(seed)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     # here is where you should start up a session,
@@ -185,6 +189,7 @@ def main():  # noqa: D103
     # print(num_actions)
     if args.deep:
         q_net = DeepQNet(HISTORY_LENGTH, num_actions, args.large).to(device)
+        print(q_net)
         qminus_net = DeepQNet(HISTORY_LENGTH, num_actions, args.large).to(device)
     else:
         q_net = LinearQNet(HISTORY_LENGTH, num_actions).to(device)
@@ -192,8 +197,16 @@ def main():  # noqa: D103
     if args.weights is not None:
         q_net.load_state_dict(torch.load(args.weights))
     wandb.watch(q_net, log="all")
-    optimizer = optim.RMSprop(params=q_net.parameters(), lr=LR, momentum=MOMENTUM)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.999)
+    if args.optimizer == 'rmsprop':
+        optimizer = torch.optim.RMSprop(q_net.parameters(), lr=args.lr, eps=0.001, alpha=0.95)
+    elif args.optimizer == 'adam':
+        optimizer = torch.optim.Adam(q_net.parameters(), lr=args.lr)
+    else:
+        raise ValueError
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.scheduler_step_size, gamma=0.999)
+    print(optimizer)
+    print('start lr:', args.lr)
+    print('final lr:', args.lr * 0.999 ** (args.iterations / (args.scheduler_step_size * args.train_freq)))
     atari_pro = AtariPreprocessor(args.resize)
     history_pro = HistoryPreprocessor(HISTORY_LENGTH)
     preprocessor = PreprocessorSequence([atari_pro, history_pro])
@@ -208,7 +221,7 @@ def main():  # noqa: D103
         END_EPS,
         TARGET_UPDATE_FREQ,
         args.num_burn_in,
-        TRAIN_FREQ,
+        args.train_freq,
         EVAL_FREQ,
         args.batch_size,
         args.iterations,
