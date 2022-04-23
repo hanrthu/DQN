@@ -10,10 +10,8 @@ import torch
 from deeprl_hw2.dqn import DQNAgent, DeepQNet, LinearQNet
 from deeprl_hw2.policy import GreedyPolicy
 from deeprl_hw2.preprocessors import AtariPreprocessor, HistoryPreprocessor, PreprocessorSequence
-from deeprl_hw2.utils import make_env
 
 env = gym.make('SpaceInvaders-v0')
-env = make_env(env)
 
 def main():
     parser = ArgumentParser()

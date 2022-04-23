@@ -13,10 +13,8 @@ import torch
 from deeprl_hw2.dqn import DQNAgent, DeepQNet
 from deeprl_hw2.policy import GreedyPolicy
 from deeprl_hw2.preprocessors import AtariPreprocessor, HistoryPreprocessor, PreprocessorSequence
-from deeprl_hw2.utils import make_env
 
 env = gym.make('SpaceInvaders-v0')
-env = make_env(env)
 
 plt.ion()
 reset_img = env.reset()
@@ -101,7 +99,7 @@ def main():
                 state_n = (state / 255).to(device)
                 action = policy.select_action(state_n, agent.calc_q_values, is_training=False)
                 terminate, obs = act(action)
-                plt.pause(0.01)
+                plt.pause(0.001)
                 state = preprocessor.process_state_for_memory(obs)
                 iteration += 1
 
