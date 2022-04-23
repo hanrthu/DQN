@@ -12,12 +12,12 @@ from torch import nn
 cv2.ocl.setUseOpenCL(False)
 
 
-def make_env(env, stack_frames=True, episodic_life=True, clip_rewards=False, scale=False):
+def make_env(env, stack_frames=True, episodic_life=True, clip_rewards=False, scale=False, *, skip):
     if episodic_life:
         env = EpisodicLifeEnv(env)
 
     env = NoopResetEnv(env, noop_max=30)
-    env = MaxAndSkipEnv(env, skip=4)
+    env = MaxAndSkipEnv(env, skip=skip)
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
     return env

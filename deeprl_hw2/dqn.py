@@ -233,8 +233,9 @@ class DQNAgent:
         """
         action_num = env.action_space.n
         self.q_network.train()
-        self.logger.debug("Reset Environment Shape: {}".format(env.reset().shape))
+        # self.logger.debug("Reset Environment Shape: {}".format(env.reset().shape))
         state_m: torch.ByteTensor = self.preprocessor.reset(env.reset())
+        lives: int = env.unwrapped.ale.lives()
         self.logger.debug("State Shape After Preprocess: {}".format(state_m.shape))
         policy = self.select_policy(UniformRandomPolicy, action_num)
         losses, rewards = [], []
@@ -248,17 +249,25 @@ class DQNAgent:
                 self.logger.info("Start Training Q Network!")
                 policy = self.select_policy(LinearDecayGreedyEpsilonPolicy, action_num)
             action = policy.select_action(state_n, self.calc_q_values, is_training=True)
-            obs, reward, terminate, _ = env.step(action)
+            obs, reward, terminate, info = env.step(action)
             # if reward != 0:
             #     print(iteration, reward)
             rewards.append(float(reward))
             reward = self.preprocessor.process_reward(reward)
             next_state: torch.ByteTensor = self.preprocessor.process_state_for_memory(obs)
-            self.memory.append(state_m, action, reward, next_state, terminate)
+            self.memory.append(
+                state_m,
+                action,
+                reward + self.args.life_penalty * (lives - info['ale.lives']),
+                next_state,
+                terminate,
+            )
             if not terminate:
                 state_m = next_state
+                lives = info['ale.lives']
             else:
                 state_m = self.preprocessor.reset(env.reset())
+                lives = env.unwrapped.ale.lives()
                 if iteration >= self.num_burn_in:
                     epi_losses.append(np.mean(losses))
                     epi_rewards.append(np.sum(rewards))

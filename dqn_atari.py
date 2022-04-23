@@ -148,6 +148,7 @@ def main():  # noqa: D103
     parser.add_argument('--scheduler_step_size', default=500, type=int)
     parser.add_argument('--optimizer', choices=['rmsprop', 'adam'], default='rmsprop')
     parser.add_argument('--lr', default=2.5e-4, type=float)
+    parser.add_argument('--life_penalty', default=0, type=float)
     args = parser.parse_args()
     print(args)
     args.input_shape = tuple(args.input_shape)
@@ -183,8 +184,9 @@ def main():  # noqa: D103
     # then you can run your fit method.
     print(args.env)
     env = gym.make(args.env)
-    env = make_env(env)
-    # print("0")
+    skip = 3 if args.env == 'SpaceInvaders-v0' else 4
+    print(f'skip={skip}')
+    env = make_env(env, skip=skip)
     num_actions = env.action_space.n
     # print(num_actions)
     if args.deep:
