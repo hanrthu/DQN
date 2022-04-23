@@ -203,7 +203,7 @@ def main():  # noqa: D103
     wandb.watch(q_net, log="all")
     if args.optimizer == 'rmsprop':
         optimizer = torch.optim.RMSprop(q_net.parameters(), lr=args.lr, eps=0.001, alpha=0.95)
-    elif args.optimizer == 'adam'
+    elif args.optimizer == 'adam':
         optimizer = torch.optim.Adam(q_net.parameters(), lr=args.lr)
     else:
         raise ValueError
