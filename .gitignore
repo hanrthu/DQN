@@ -7,3 +7,5 @@ wandb/
 .idea/
 .pytest_cache/
 *.pyc
+final-results.json
+final-results.tex

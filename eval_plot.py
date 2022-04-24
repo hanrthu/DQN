@@ -15,12 +15,14 @@ save_dir = Path('exps')
 def main():
     num_actions = env.action_space.n
     fig, ax = plt.subplots(figsize=(8, 5))
+    ax.set_xlabel('iterations')
+    ax.set_ylabel('average reward')
     for q_net, exp_name in [
         (LinearQNet(4, num_actions), 'LinearQN'),
         (LinearQNet(4, num_actions), 'DLinearQN'),
         (DeepQNet(4, num_actions, large=True, duel=False), 'DeepQN'),
         (DeepQNet(4, num_actions, large=True, duel=False), 'DDeepQN'),
-        (DeepQNet(4, num_actions, large=True, duel=True), 'Duel-DeepQN'),
+        (DeepQNet(4, num_actions, large=True, duel=True), 'Duel-DQN'),
     ]:
         mean_rewards = []
         exp_save_dir = save_dir / exp_name
