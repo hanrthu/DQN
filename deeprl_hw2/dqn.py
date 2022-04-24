@@ -419,22 +419,32 @@ class DQNAgent:
         self.q_network.train()
         return reward_list, video_list
 
-def evaluate(env: gym.Env, q_net: nn.Module, num_episodes: int,  pbar: bool = True) -> tuple[float, float]:
+# 返回 num_episodes 次游戏得分的均值与标准差，并返回表现最好的一次的视频
+def evaluate(env: gym.Env, q_net: nn.Module, num_episodes: int,  pbar: bool = True) \
+        -> tuple[float, float, list[np.ndarray]]:
     atari_pro = AtariPreprocessor(84)
     history_pro = HistoryPreprocessor(4)
     preprocessor = PreprocessorSequence([atari_pro, history_pro])
     policy = GreedyPolicy()
     q_func = partial(calc_q_values, q_network=q_net)
     rewards = []
+    video = None
+    best_reward = 0
     for _ in tqdm(range(num_episodes), ncols=80, disable=not pbar):
         terminate = False
-        state: torch.ByteTensor = preprocessor.reset(env.reset())
+        reset_frame = env.reset()
+        cur_video = [reset_frame]
+        state: torch.ByteTensor = preprocessor.reset(reset_frame)
         tot = 0
         while not terminate:
             state_n = (state / 255).to('cuda')
             action = policy.select_action(state_n, q_func)
             obs, reward, terminate, _ = env.step(action)
+            cur_video.append(obs)
             tot += reward
             state = preprocessor.process_state_for_memory(obs)
+        if tot > best_reward:
+            best_reward = tot
+            video = cur_video
         rewards.append(tot)
-    return np.mean(rewards), np.std(rewards)  # type: ignore
+    return np.mean(rewards), np.std(rewards), video  # type: ignore

@@ -33,7 +33,7 @@ def main():
         q_net: nn.Module = q_net.to('cuda')
         for save_it in tqdm(save_its[len(mean_rewards):], ncols=80, desc=f'evaluating {exp_name}'):
             q_net.load_state_dict(torch.load(exp_save_dir / f'SpaceInvaders-v0-{save_it}.pth'))
-            mean, std = evaluate(env, q_net, num_episodes=20, pbar=False)
+            mean, std, best_video = evaluate(env, q_net, num_episodes=20, pbar=False)
             mean_rewards.append(mean)
             with open(exp_plot_data_dir, 'w') as f:
                 json.dump(mean_rewards, f, indent=4)
