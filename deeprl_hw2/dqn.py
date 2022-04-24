@@ -1,5 +1,5 @@
 """Main DQN agent."""
-from collections import Counter
+from functools import partial
 import os
 from pathlib import Path
 from typing import Type
@@ -7,12 +7,13 @@ from typing import Type
 import gym
 import numpy as np
 import torch
-import torch.nn as nn
+from torch import nn
 from tqdm import tqdm
 import wandb
 
 from deeprl_hw2.core import Memory, Policy, Preprocessor
 from deeprl_hw2.policy import GreedyEpsilonPolicy, GreedyPolicy, LinearDecayGreedyEpsilonPolicy, UniformRandomPolicy
+from deeprl_hw2.preprocessors import AtariPreprocessor, HistoryPreprocessor, PreprocessorSequence
 from deeprl_hw2.utils import eval_model, get_hard_target_model_updates
 
 class DeepQNet(nn.Module):
@@ -93,6 +94,16 @@ class LinearQNet(nn.Module):
         x = x.view(x.shape[0], -1)
         # print("X_reshaped:", x.shape)
         return self.linear(x)
+
+def calc_q_values(state: torch.FloatTensor, q_network: nn.Module) -> torch.FloatTensor:
+    state_dim = state.ndim
+    if state_dim == 3:
+        state = state[None]
+    with eval_model(q_network):
+        q_values = q_network(state)
+    if state_dim == 3:
+        q_values = q_values[0]
+    return q_values
 
 class DQNAgent:
     """Class implementing DQN.
@@ -192,14 +203,7 @@ class DQNAgent:
         ------
         Q-values for the state(s)
         """
-        state_dim = state.ndim
-        if state_dim == 3:
-            state = state[None]
-        with eval_model(self.q_network):
-            q_values = self.q_network(state)
-        if state_dim == 3:
-            q_values = q_values[0]
-        return q_values
+        return calc_q_values(state, self.q_network)
 
     def select_policy(self, policy_cls: Type[Policy], num_actions: int) -> Policy:
         # if policy_name == 'Uniform':
@@ -373,7 +377,7 @@ class DQNAgent:
             'action': batch['action'],
         }
 
-    def evaluate_episode(self, env,policy, max_episode_length=None):
+    def evaluate_episode(self, env, policy, max_episode_length=None):
         video_frames = [env.reset()]
         state: torch.ByteTensor = self.preprocessor.reset(video_frames[0])
         terminate = False
@@ -414,3 +418,23 @@ class DQNAgent:
         # print("Mean Reward:", np.mean(reward_list))
         self.q_network.train()
         return reward_list, video_list
+
+def evaluate(env: gym.Env, q_net: nn.Module, num_episodes: int,  pbar: bool = True) -> tuple[float, float]:
+    atari_pro = AtariPreprocessor(84)
+    history_pro = HistoryPreprocessor(4)
+    preprocessor = PreprocessorSequence([atari_pro, history_pro])
+    policy = GreedyPolicy()
+    q_func = partial(calc_q_values, q_network=q_net)
+    rewards = []
+    for _ in tqdm(range(num_episodes), ncols=80, disable=not pbar):
+        terminate = False
+        state: torch.ByteTensor = preprocessor.reset(env.reset())
+        tot = 0
+        while not terminate:
+            state_n = (state / 255).to('cuda')
+            action = policy.select_action(state_n, q_func)
+            obs, reward, terminate, _ = env.step(action)
+            tot += reward
+            state = preprocessor.process_state_for_memory(obs)
+        rewards.append(tot)
+    return np.mean(rewards), np.std(rewards)  # type: ignore
