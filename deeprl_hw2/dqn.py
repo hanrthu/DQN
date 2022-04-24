@@ -429,7 +429,7 @@ def evaluate(env: gym.Env, q_net: nn.Module, num_episodes: int,  pbar: bool = Tr
     q_func = partial(calc_q_values, q_network=q_net)
     rewards = []
     video = None
-    best_reward = 0
+    best_reward = -1
     for _ in tqdm(range(num_episodes), ncols=80, disable=not pbar):
         terminate = False
         reset_frame = env.reset()
