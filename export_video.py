@@ -28,7 +28,7 @@ def main():
                 continue
             if i:
                 q_net.load_state_dict(torch.load(save_dir / exp_name / f'SpaceInvaders-v0-{i * 1666666}.pth'))
-            mean, std, best_video = evaluate(env, q_net, num_episodes=20, pbar=True)
+            mean, std, best_video = evaluate(env, q_net, num_episodes=50, pbar=True)
             video_writer = cv2.VideoWriter(str(video_path), cv2.VideoWriter_fourcc(*"MJPG"), 50.0, (160, 210))
             for frame in best_video:
                 video_writer.write(frame)

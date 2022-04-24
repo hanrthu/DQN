@@ -15,8 +15,8 @@ save_dir = Path('exps')
 def main():
     num_actions = env.action_space.n
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.set_xlabel('iterations')
-    ax.set_ylabel('average reward')
+    ax.set_xlabel('迭代次数')
+    ax.set_ylabel('平均收益')
     for q_net, exp_name in [
         (LinearQNet(4, num_actions), 'LinearQN'),
         (LinearQNet(4, num_actions), 'DLinearQN'),
